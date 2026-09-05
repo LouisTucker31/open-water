@@ -51,17 +51,17 @@
     </div>
 
     <div class="section-label" id="timeLabel">Choose forecast time</div>
-    <div class="time-picker-wrap">
-      <input
-        type="datetime-local"
-        id="timeInput"
-        class="time-picker-input"
-        step="3600"
+    <div class="time-scroller-wrap">
+      <div class="time-scroller-highlight" aria-hidden="true"></div>
+      <div
+        class="time-scroller"
+        id="timeScroller"
+        role="listbox"
         aria-labelledby="timeLabel"
-        disabled
-      >
+        aria-disabled="true"
+      ></div>
     </div>
-    <p class="time-picker-hint">Tap to open the picker and choose a time, from now to 7 days ahead.</p>
+    <p class="time-scroller-hint">Swipe or use the left/right arrow keys to pick an hour, from now to 7 days ahead.</p>
 
     <div class="metrics">
       <div class="metric">
@@ -133,7 +133,7 @@
       <p>This is a training planning aid, not a safety certification. Always check conditions on the day and follow local safety guidance.</p>
     </details>
 
-    <p class="build-stamp">BUILD-14-NATIVE-PICKER</p>
+    <p class="build-stamp">BUILD-15-HORIZONTAL-SCROLLER</p>
   </main>
 
   <script src="main.js"></script>

@@ -1,9 +1,10 @@
-// BUILD-14-NATIVE-PICKER: if you see this comment on GitHub, this JS file is current
+// BUILD-15-HORIZONTAL-SCROLLER: if you see this comment on GitHub, this JS file is current
 (() => {
   const LAT = 50.706;
   const LON = -1.908;
   const LONDON_TZ = 'Europe/London';
   const FORECAST_DAYS = 7; // Weather API supports up to 16 days, Marine up to 8; 7 is the shared window.
+  const ITEM_WIDTH_PX = 92; // Must match the .time-item flex-basis in styles.css.
 
   const state = {
     weather: null,
@@ -23,7 +24,7 @@
     errorBanner: document.getElementById('errorBanner'),
     errorText: document.getElementById('errorText'),
     retryBtn: document.getElementById('retryBtn'),
-    timeInput: document.getElementById('timeInput'),
+    timeScroller: document.getElementById('timeScroller'),
     water: document.getElementById('water'),
     waterComfort: document.getElementById('waterComfort'),
     waves: document.getElementById('waves'),
@@ -72,6 +73,19 @@
     const [y, m, d] = dateStr.split('-').map(Number);
     const dt = new Date(Date.UTC(y, m - 1, d));
     return dt.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', timeZone:'UTC' });
+  }
+
+  function formatShortDate(dateStr){
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    return dt.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'UTC' });
+  }
+
+  function addDaysToIsoDate(dateStr, days){
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    dt.setUTCDate(dt.getUTCDate() + days);
+    return dt.toISOString().slice(0, 10);
   }
 
   function formatTimeLabel(isoTime){
@@ -356,24 +370,109 @@
     updateHeading(iso);
   }
 
-  // Open-Meteo's hourly ISO strings ("YYYY-MM-DDTHH:mm") are already in the
-  // exact format the datetime-local input uses for its value, min and max,
-  // so no conversion is needed either direction.
-  els.timeInput.addEventListener('change', () => {
+  // The container's viewport width is responsive (unlike a fixed-height
+  // vertical wheel), so the leading/trailing spacers are sized in JS rather
+  // than fixed in CSS, letting the first and last hour still reach centre.
+  function computeSidePadding(){
+    return Math.max(0, (els.timeScroller.clientWidth - ITEM_WIDTH_PX) / 2);
+  }
+
+  // Builds the scrollable columns fresh each time the forecast reloads,
+  // since the available hour range shifts as "now" moves forward.
+  function buildScrollerItems(){
+    const container = els.timeScroller;
+    container.textContent = '';
+
+    const sidePad = computeSidePadding();
+    const leadSpacer = document.createElement('div');
+    leadSpacer.className = 'time-scroller-spacer';
+    leadSpacer.style.flex = `0 0 ${sidePad}px`;
+    leadSpacer.setAttribute('aria-hidden', 'true');
+    container.appendChild(leadSpacer);
+
+    const todayIso = getLondonNowHourIso().slice(0, 10);
+    const tomorrowIso = addDaysToIsoDate(todayIso, 1);
+
+    state.times.forEach((iso, index) => {
+      const datePart = iso.slice(0, 10);
+      const dateLabel = datePart === todayIso ? 'Today' : datePart === tomorrowIso ? 'Tomorrow' : formatShortDate(datePart);
+      const item = document.createElement('div');
+      item.className = 'time-item';
+      item.id = `time-opt-${index}`;
+      item.setAttribute('role', 'option');
+      item.dataset.index = String(index);
+
+      const dateEl = document.createElement('span');
+      dateEl.className = 'time-item-date';
+      dateEl.textContent = dateLabel;
+
+      const timeEl = document.createElement('span');
+      timeEl.className = 'time-item-time';
+      timeEl.textContent = formatTimeLabel(iso);
+
+      item.appendChild(dateEl);
+      item.appendChild(timeEl);
+      item.addEventListener('click', () => selectIndex(index, true));
+      container.appendChild(item);
+    });
+
+    const trailSpacer = document.createElement('div');
+    trailSpacer.className = 'time-scroller-spacer';
+    trailSpacer.style.flex = `0 0 ${sidePad}px`;
+    trailSpacer.setAttribute('aria-hidden', 'true');
+    container.appendChild(trailSpacer);
+  }
+
+  function updateScrollerSelectionUi(){
+    const items = els.timeScroller.querySelectorAll('.time-item');
+    items.forEach(item => {
+      item.setAttribute('aria-selected', Number(item.dataset.index) === state.selectedIndex ? 'true' : 'false');
+    });
+    const selectedItem = document.getElementById(`time-opt-${state.selectedIndex}`);
+    if (selectedItem) els.timeScroller.setAttribute('aria-activedescendant', selectedItem.id);
+  }
+
+  function scrollToIndex(index, smooth){
+    els.timeScroller.scrollTo({ left: index * ITEM_WIDTH_PX, behavior: smooth ? 'smooth' : 'auto' });
+  }
+
+  function selectIndex(index, smoothScroll){
     if (!state.times.length) return;
-    let index = state.times.indexOf(els.timeInput.value);
-    if (index === -1){
-      // A browser that ignores the step attribute could return a value off
-      // the hourly grid, so snap to the closest available hour rather than
-      // silently failing to render anything.
-      const target = new Date(els.timeInput.value);
-      index = state.times.reduce((closest, iso, i) => {
-        return Math.abs(new Date(iso) - target) < Math.abs(new Date(state.times[closest]) - target) ? i : closest;
-      }, 0);
-      els.timeInput.value = state.times[index];
-    }
-    state.selectedIndex = index;
+    const clamped = Math.max(0, Math.min(state.times.length - 1, index));
+    state.selectedIndex = clamped;
+    updateScrollerSelectionUi();
+    scrollToIndex(clamped, smoothScroll);
     renderSelected();
+  }
+
+  let scrollSettleTimer = null;
+  els.timeScroller.addEventListener('scroll', () => {
+    if (scrollSettleTimer) clearTimeout(scrollSettleTimer);
+    scrollSettleTimer = setTimeout(() => {
+      if (!state.times.length) return;
+      const nearestIndex = Math.round(els.timeScroller.scrollLeft / ITEM_WIDTH_PX);
+      if (nearestIndex !== state.selectedIndex) selectIndex(nearestIndex, false);
+    }, 120);
+  }, { passive: true });
+
+  els.timeScroller.addEventListener('keydown', (event) => {
+    if (!state.times.length) return;
+    if (event.key === 'ArrowRight'){ event.preventDefault(); selectIndex(state.selectedIndex + 1, true); }
+    else if (event.key === 'ArrowLeft'){ event.preventDefault(); selectIndex(state.selectedIndex - 1, true); }
+    else if (event.key === 'Home'){ event.preventDefault(); selectIndex(0, true); }
+    else if (event.key === 'End'){ event.preventDefault(); selectIndex(state.times.length - 1, true); }
+  });
+
+  // A rotation or the browser toolbar showing/hiding changes the viewport
+  // width, so the spacers need recalculating to keep the centre snap point
+  // aligned; re-centre on the currently selected hour afterwards.
+  window.addEventListener('resize', () => {
+    if (!state.times.length) return;
+    const sidePad = computeSidePadding();
+    els.timeScroller.querySelectorAll('.time-scroller-spacer').forEach(el => {
+      el.style.flex = `0 0 ${sidePad}px`;
+    });
+    scrollToIndex(state.selectedIndex, false);
   });
 
   function setLoading(isLoading){
@@ -381,7 +480,9 @@
     els.refreshBtn.disabled = isLoading;
     els.refreshBtn.classList.toggle('spinning', isLoading);
     els.refreshBtn.setAttribute('aria-label', isLoading ? 'Refreshing forecast' : 'Refresh forecast');
-    if (isLoading) els.timeInput.disabled = true;
+    els.timeScroller.classList.toggle('disabled', isLoading);
+    els.timeScroller.setAttribute('aria-disabled', isLoading ? 'true' : 'false');
+    els.timeScroller.tabIndex = isLoading ? -1 : 0;
   }
 
   function showError(message){
@@ -437,10 +538,9 @@
       }
 
       state.selectedIndex = 0;
-      els.timeInput.min = state.times[0];
-      els.timeInput.max = state.times[state.times.length - 1];
-      els.timeInput.value = state.times[0];
-      els.timeInput.disabled = false;
+      buildScrollerItems();
+      updateScrollerSelectionUi();
+      scrollToIndex(0, false);
 
       els.lastUpdated.textContent = `Updated ${new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })}`;
 
@@ -448,8 +548,7 @@
     } catch (err){
       showError(err.message || 'Could not load the forecast. Check your connection and try again.');
       els.dateHeading.textContent = 'Forecast unavailable';
-      els.timeInput.disabled = true;
-      els.timeInput.value = '';
+      els.timeScroller.textContent = '';
       state.times = [];
     } finally {
       setLoading(false);

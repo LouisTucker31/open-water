@@ -234,12 +234,28 @@
     return { label:'Rough', text:`Rough ${height.toFixed(1)} m waves. Conditions suit experienced swimmers only.`, level:'destructive' };
   }
 
-  function waterComfort(temp){
+  // Wetsuit guidance follows Ironman's age-group wetsuit rules (thresholds
+  // confirmed September 2026): mandatory below 16°C, legal up to and
+  // including 24.5°C, optional without award eligibility up to 28.8°C,
+  // banned above that. Professional-athlete and other federations'
+  // thresholds differ; see the note in Sources and data notes.
+  function wetsuitGuidance(temp){
     if (temp === null) return 'No data';
-    if (temp >= 18) return 'Comfortable';
-    if (temp >= 14) return 'Cool, wetsuit recommended';
-    if (temp >= 10) return 'Cold, wetsuit essential';
-    return 'Very cold, limit exposure';
+    if (temp < 16) return 'Wetsuit mandatory';
+    if (temp <= 24.5) return 'Wetsuit legal';
+    if (temp <= 28.8) return 'Wetsuit optional, no awards';
+    return 'Wetsuit banned';
+  }
+
+  // Same bands as wetsuitGuidance: cold and hot ends both warrant attention
+  // (hypothermia risk vs overheating/no-award zone), the legal range is the
+  // straightforwardly comfortable one.
+  function wetsuitDotLevel(temp){
+    if (temp === null) return 'warning';
+    if (temp < 16) return 'warning';
+    if (temp <= 24.5) return 'success';
+    if (temp <= 28.8) return 'warning';
+    return 'destructive';
   }
 
   function visibilityCategory(metres){
@@ -305,7 +321,7 @@
     els.weather.textContent = WEATHER_TEXT[weatherCode] || 'Mixed conditions';
 
     els.water.textContent = waterTemp === null ? '\u2013' : `${Math.round(waterTemp)}\u00b0C`;
-    els.waterComfort.textContent = waterComfort(waterTemp);
+    els.waterComfort.textContent = wetsuitGuidance(waterTemp);
 
     els.waves.textContent = waveHeight === null ? '\u2013' : `${waveHeight.toFixed(1)} m`;
     const chop = chopDescription(waveHeight);
@@ -337,8 +353,8 @@
 
     els.temperatureText.textContent = waterTemp === null
       ? 'Sea temperature data is not available for this hour.'
-      : `${Math.round(waterTemp)}\u00b0C sea temperature. ${waterComfort(waterTemp)}.`;
-    setDot(els.tempDot, waterTemp !== null && waterTemp < 14 ? 'warning' : 'accent');
+      : `${Math.round(waterTemp)}\u00b0C sea temperature. ${wetsuitGuidance(waterTemp)}.`;
+    setDot(els.tempDot, wetsuitDotLevel(waterTemp));
 
     const verdict = computeVerdict({ waveHeight, gustMph: windGust, waterTemp, rainChance, weatherCode });
     els.verdictLabel.textContent = verdict.label;

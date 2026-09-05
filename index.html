@@ -36,8 +36,8 @@
           <span id="verdictLabel" class="verdict-label">Loading&hellip;</span>
         </div>
         <p class="verdict-text" id="verdictText">Waiting for the latest forecast.</p>
-        <span class="updated" id="lastUpdated"></span>
       </div>
+      <span class="updated" id="lastUpdated"></span>
     </section>
 
     <div id="loadingBanner" class="status-banner loading visible" role="status" aria-live="polite">
@@ -61,7 +61,7 @@
         aria-disabled="true"
       ></div>
     </div>
-    <p class="time-scroller-hint">Swipe or use the left/right arrow keys to pick an hour, from now to 7 days ahead.</p>
+    <p class="time-scroller-hint">Swipe to pick an hour, from now to 7 days ahead.</p>
 
     <div class="metrics">
       <div class="metric">
@@ -131,10 +131,11 @@
       <p><strong>Tide:</strong> high and low tide times shown here are estimated from Open-Meteo's modelled sea level height, not from an official tide table. This is <strong>not a substitute for an authoritative source</strong>. For confirmed UK tide times, check <a href="https://www.admiralty.co.uk/access-data/tidal-data/easy-tide" target="_blank" rel="noopener noreferrer">ADMIRALTY EasyTide</a> directly.</p>
       <p>Open-Meteo is free for non-commercial use and requires no API key. Both data sets are fetched live from your browser each time you refresh this page.</p>
       <p><strong>Your location:</strong> used only to fetch forecast data for where you are, sent to Open-Meteo along with each request. It is not stored and is not sent anywhere else. If location access is unavailable or declined, the forecast falls back to Poole/Bournemouth.</p>
+      <p><strong>Wetsuit guidance:</strong> based on Ironman's age-group wetsuit rules: mandatory below 16&deg;C, legal up to and including 24.5&deg;C, optional without award eligibility up to 28.8&deg;C, and banned above that. Professional-athlete limits and other federations' rules differ, and race organisers make the official call on the day.</p>
       <p>This is a training planning aid, not a safety certification. Always check conditions on the day and follow local safety guidance.</p>
     </details>
 
-    <p class="build-stamp">BUILD-16-GEOLOCATION</p>
+    <p class="build-stamp">BUILD-17-WETSUIT-RULE</p>
   </main>
 
   <script src="main.js"></script>

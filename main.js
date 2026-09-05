@@ -1,12 +1,15 @@
-// BUILD-15-HORIZONTAL-SCROLLER: if you see this comment on GitHub, this JS file is current
+// BUILD-16-GEOLOCATION: if you see this comment on GitHub, this JS file is current
 (() => {
-  const LAT = 50.706;
-  const LON = -1.908;
+  // Used only if the browser can't or won't provide the device's location.
+  const FALLBACK_LAT = 50.706;
+  const FALLBACK_LON = -1.908;
+  const FALLBACK_LOCATION_LABEL = 'Poole/Bournemouth (fallback location)';
   const LONDON_TZ = 'Europe/London';
   const FORECAST_DAYS = 7; // Weather API supports up to 16 days, Marine up to 8; 7 is the shared window.
   const ITEM_WIDTH_PX = 92; // Must match the .time-item flex-basis in styles.css.
 
   const state = {
+    location: null,
     weather: null,
     marine: null,
     extremes: [],
@@ -16,11 +19,13 @@
 
   const els = {
     dateHeading: document.getElementById('dateHeading'),
+    locText: document.getElementById('locText'),
     verdictCard: document.getElementById('verdictCard'),
     verdictLabel: document.getElementById('verdictLabel'),
     lastUpdated: document.getElementById('lastUpdated'),
     refreshBtn: document.getElementById('refreshBtn'),
     loadingBanner: document.getElementById('loadingBanner'),
+    loadingText: document.getElementById('loadingText'),
     errorBanner: document.getElementById('errorBanner'),
     errorText: document.getElementById('errorText'),
     retryBtn: document.getElementById('retryBtn'),
@@ -109,10 +114,10 @@
     return `${map.year}-${map.month}-${map.day}T${hour}:00`;
   }
 
-  function weatherUrl(){
+  function weatherUrl(lat, lon){
     const params = new URLSearchParams({
-      latitude: LAT,
-      longitude: LON,
+      latitude: lat,
+      longitude: lon,
       hourly: 'temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation_probability,visibility',
       timezone: LONDON_TZ,
       forecast_days: String(FORECAST_DAYS),
@@ -121,10 +126,10 @@
     return `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
   }
 
-  function marineUrl(){
+  function marineUrl(lat, lon){
     const params = new URLSearchParams({
-      latitude: LAT,
-      longitude: LON,
+      latitude: lat,
+      longitude: lon,
       hourly: 'wave_height,wave_period,sea_surface_temperature,sea_level_height_msl',
       timezone: LONDON_TZ,
       forecast_days: String(FORECAST_DAYS)
@@ -494,6 +499,36 @@
     els.errorBanner.classList.remove('visible');
   }
 
+  // Resolves the device's current position, falling back to a fixed
+  // location if geolocation is unsupported, denied, or times out, so the
+  // app still functions rather than being left with nothing to fetch.
+  function getCurrentLocation(){
+    return new Promise((resolve) => {
+      if (!('geolocation' in navigator)){
+        resolve({ lat: FALLBACK_LAT, lon: FALLBACK_LON, label: FALLBACK_LOCATION_LABEL });
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            lat: position.coords.latitude,
+            lon: position.coords.longitude,
+            label: 'Current location'
+          });
+        },
+        () => {
+          resolve({ lat: FALLBACK_LAT, lon: FALLBACK_LON, label: FALLBACK_LOCATION_LABEL });
+        },
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 5 * 60 * 1000 }
+      );
+    });
+  }
+
+  function updateLocationDisplay(){
+    const { lat, lon, label } = state.location;
+    els.locText.textContent = `${lat.toFixed(3)}, ${lon.toFixed(3)} \u00b7 ${label}`;
+  }
+
   // Only hours present in both APIs' responses, from the current hour
   // onward, are offered on the wheel, so every selectable time is
   // guaranteed to have both weather and marine data.
@@ -510,11 +545,13 @@
 
   async function loadForecast(){
     setLoading(true);
+    els.loadingText.textContent = 'Fetching the latest forecast from Open-Meteo\u2026';
     hideError();
     try {
+      const { lat, lon } = state.location;
       const [weatherRes, marineRes] = await Promise.all([
-        fetch(weatherUrl()),
-        fetch(marineUrl())
+        fetch(weatherUrl(lat, lon)),
+        fetch(marineUrl(lat, lon))
       ]);
 
       if (!weatherRes.ok || !marineRes.ok){
@@ -558,5 +595,9 @@
   els.refreshBtn.addEventListener('click', loadForecast);
   els.retryBtn.addEventListener('click', loadForecast);
 
-  loadForecast();
+  (async function init(){
+    state.location = await getCurrentLocation();
+    updateLocationDisplay();
+    loadForecast();
+  })();
 })();

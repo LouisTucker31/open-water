@@ -1,0 +1,347 @@
+(() => {
+      const LAT = 50.706;
+      const LON = -1.908;
+
+      const state = {
+        weather: null,
+        marine: null,
+        extremes: [],
+        dateStr: null
+      };
+
+      const els = {
+        dateHeading: document.getElementById('dateHeading'),
+        verdictBadge: document.getElementById('verdictBadge'),
+        verdictLabel: document.getElementById('verdictLabel'),
+        lastUpdated: document.getElementById('lastUpdated'),
+        refreshBtn: document.getElementById('refreshBtn'),
+        loadingBanner: document.getElementById('loadingBanner'),
+        errorBanner: document.getElementById('errorBanner'),
+        errorText: document.getElementById('errorText'),
+        retryBtn: document.getElementById('retryBtn'),
+        water: document.getElementById('water'),
+        waterComfort: document.getElementById('waterComfort'),
+        waves: document.getElementById('waves'),
+        chop: document.getElementById('chop'),
+        wind: document.getElementById('wind'),
+        gust: document.getElementById('gust'),
+        air: document.getElementById('air'),
+        weather: document.getElementById('weather'),
+        chopDot: document.getElementById('chopDot'),
+        chopText: document.getElementById('chopText'),
+        tideDot: document.getElementById('tideDot'),
+        currentText: document.getElementById('currentText'),
+        visDot: document.getElementById('visDot'),
+        sightingText: document.getElementById('sightingText'),
+        tempDot: document.getElementById('tempDot'),
+        temperatureText: document.getElementById('temperatureText'),
+        tideHigh: document.getElementById('tideHigh'),
+        tideLow: document.getElementById('tideLow'),
+        tideState: document.getElementById('tideState'),
+        wavePeriod: document.getElementById('wavePeriod'),
+        rainChance: document.getElementById('rainChance'),
+        visibilityText: document.getElementById('visibilityText'),
+        windDirText: document.getElementById('windDirText'),
+        verdictText: document.getElementById('verdictText')
+      };
+
+      const radios = [...document.querySelectorAll('input[name="hour"]')];
+
+      const WEATHER_TEXT = {
+        0:'Clear sky', 1:'Mainly clear', 2:'Partly cloudy', 3:'Overcast',
+        45:'Fog', 48:'Freezing fog',
+        51:'Light drizzle', 53:'Drizzle', 55:'Dense drizzle',
+        56:'Light freezing drizzle', 57:'Freezing drizzle',
+        61:'Light rain', 63:'Rain', 65:'Heavy rain',
+        66:'Light freezing rain', 67:'Freezing rain',
+        71:'Light snow', 73:'Snow', 75:'Heavy snow', 77:'Snow grains',
+        80:'Light showers', 81:'Showers', 82:'Heavy showers',
+        85:'Light snow showers', 86:'Snow showers',
+        95:'Thunderstorm', 96:'Thunderstorm with hail', 99:'Severe thunderstorm'
+      };
+
+      function degToCompass(deg){
+        const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+        return dirs[Math.round(deg / 22.5) % 16];
+      }
+
+      function formatHeaderDate(dateStr){
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const dt = new Date(Date.UTC(y, m - 1, d));
+        return dt.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', timeZone:'UTC' });
+      }
+
+      function formatTimeLabel(isoTime){
+        return isoTime.slice(11, 16);
+      }
+
+      function safeFixed(value, digits){
+        return (value === null || value === undefined || Number.isNaN(value)) ? null : Number(value).toFixed(digits);
+      }
+
+      function weatherUrl(){
+        const params = new URLSearchParams({
+          latitude: LAT,
+          longitude: LON,
+          hourly: 'temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation_probability,visibility',
+          timezone: 'Europe/London',
+          forecast_days: '1',
+          wind_speed_unit: 'mph'
+        });
+        return `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
+      }
+
+      function marineUrl(){
+        const params = new URLSearchParams({
+          latitude: LAT,
+          longitude: LON,
+          hourly: 'wave_height,wave_period,sea_surface_temperature,sea_level_height_msl',
+          timezone: 'Europe/London',
+          forecast_days: '1'
+        });
+        return `https://marine-api.open-meteo.com/v1/marine?${params.toString()}`;
+      }
+
+      // Approximates high/low tide events from Open-Meteo's modelled sea level
+      // curve by finding local turning points across the day's hourly values.
+      function findTideExtremes(times, heights){
+        const extremes = [];
+        for (let i = 1; i < heights.length - 1; i++){
+          const prev = heights[i - 1];
+          const cur = heights[i];
+          const next = heights[i + 1];
+          if (cur === null || prev === null || next === null) continue;
+          if (cur > prev && cur >= next) extremes.push({ type:'high', time: times[i], height: cur });
+          else if (cur < prev && cur <= next) extremes.push({ type:'low', time: times[i], height: cur });
+        }
+        return extremes;
+      }
+
+      function tideNarrative(extremes, selectedIso){
+        const selectedDate = new Date(selectedIso);
+        const sorted = extremes
+          .map(e => ({ ...e, dateObj: new Date(e.time) }))
+          .sort((a, b) => a.dateObj - b.dateObj);
+
+        let prior = null;
+        for (const e of sorted){
+          if (e.dateObj <= selectedDate) prior = e;
+          else break;
+        }
+
+        if (!prior){
+          return {
+            state: 'Not enough data',
+            text: 'Not enough of today\u2019s tide curve is available yet to estimate the current state.',
+            level: 'warning'
+          };
+        }
+
+        const hoursSince = (selectedDate - prior.dateObj) / 3600000;
+        const trend = prior.type === 'high' ? 'ebb' : 'flood';
+        const stage = hoursSince < 1 ? 'starting' : hoursSince < 2.5 ? 'developing' : 'established';
+        const stateLabel = `${trend.charAt(0).toUpperCase()}${trend.slice(1)} ${stage}`;
+        const elapsed = hoursSince < 1 ? `${Math.round(hoursSince * 60)} minutes` : `${hoursSince.toFixed(1)} hours`;
+        const heightText = safeFixed(prior.height, 1);
+        const driftNote = trend === 'ebb' ? 'some lateral drift is possible' : 'a returning flow is likely';
+        const text = `About ${elapsed} after ${prior.type} tide${heightText ? ` (${heightText} m at ${formatTimeLabel(prior.time)})` : ''}. The ${trend} is ${stage}, so ${driftNote}.`;
+        return { state: stateLabel, text, level: trend === 'ebb' && stage === 'established' ? 'warning' : 'success' };
+      }
+
+      function chopDescription(height){
+        if (height === null) return { label:'No data', text:'Wave data is not available for this hour.', level:'warning' };
+        if (height < 0.2) return { label:'Flat', text:'Flat to almost flat water.', level:'success' };
+        if (height < 0.4) return { label:'Light chop', text:`Small ${height.toFixed(1)} m waves. Expect light surface movement rather than flat water.`, level:'success' };
+        if (height < 0.7) return { label:'Moderate chop', text:`Moderate ${height.toFixed(1)} m waves. Noticeable chop, manageable for most open-water swimmers.`, level:'warning' };
+        if (height < 1.1) return { label:'Choppy', text:`Choppy ${height.toFixed(1)} m waves. Sighting and breathing will take more effort.`, level:'warning' };
+        return { label:'Rough', text:`Rough ${height.toFixed(1)} m waves. Conditions suit experienced swimmers only.`, level:'destructive' };
+      }
+
+      function waterComfort(temp){
+        if (temp === null) return 'No data';
+        if (temp >= 18) return 'Comfortable';
+        if (temp >= 14) return 'Cool, wetsuit recommended';
+        if (temp >= 10) return 'Cold, wetsuit essential';
+        return 'Very cold, limit exposure';
+      }
+
+      function visibilityCategory(metres){
+        if (metres === null) return { label:'No data', level:'warning' };
+        if (metres >= 10000) return { label:'Very good', level:'success' };
+        if (metres >= 4000) return { label:'Good', level:'success' };
+        if (metres >= 1000) return { label:'Moderate', level:'warning' };
+        return { label:'Poor', level:'destructive' };
+      }
+
+      function computeVerdict({ waveHeight, gustMph, waterTemp, rainChance, weatherCode }){
+        const concerns = [];
+        if (waveHeight !== null && waveHeight >= 0.8) concerns.push('significant chop');
+        if (gustMph !== null && gustMph >= 25) concerns.push('strong gusts');
+        if (waterTemp !== null && waterTemp < 12) concerns.push('cold water');
+        if (rainChance !== null && rainChance >= 60) concerns.push('a good chance of rain');
+        if ([95, 96, 99].includes(weatherCode)) concerns.push('possible thunderstorms, so seek shelter if lightning is near');
+
+        if (concerns.length === 0 && waveHeight !== null && waveHeight < 0.4 && gustMph !== null && gustMph < 15){
+          return { label:'Excellent swim window', level:'success', text:'Excellent training conditions. Calm water, light wind and comfortable visibility.' };
+        }
+        if (concerns.length === 0){
+          return { label:'Good swim window', level:'success', text:'Good training conditions overall, with nothing major to work around.' };
+        }
+        if (concerns.length === 1){
+          return { label:'Good, check conditions', level:'warning', text:`Generally good conditions, but keep an eye on ${concerns[0]}.` };
+        }
+        const last = concerns[concerns.length - 1];
+        const rest = concerns.slice(0, -1).join(', ');
+        return { label:'Exercise caution', level:'destructive', text:`Conditions need extra care today: ${rest} and ${last}.` };
+      }
+
+      function setDot(el, level){
+        el.className = `dot ${level}`;
+      }
+
+      function setBadgeLevel(level){
+        els.verdictBadge.className = `badge${level === 'success' ? '' : ' ' + level}`;
+      }
+
+      function render(hour){
+        const targetIso = `${state.dateStr}T${String(hour).padStart(2, '0')}:00`;
+        const wIndex = state.weather.hourly.time.indexOf(targetIso);
+        const mIndex = state.marine.hourly.time.indexOf(targetIso);
+
+        if (wIndex === -1 || mIndex === -1){
+          els.verdictText.textContent = 'No forecast data is available for this hour yet. Try refreshing.';
+          return;
+        }
+
+        const airTemp = state.weather.hourly.temperature_2m[wIndex];
+        const weatherCode = state.weather.hourly.weather_code[wIndex];
+        const windSpeed = state.weather.hourly.wind_speed_10m[wIndex];
+        const windDir = state.weather.hourly.wind_direction_10m[wIndex];
+        const windGust = state.weather.hourly.wind_gusts_10m[wIndex];
+        const rainChance = state.weather.hourly.precipitation_probability[wIndex];
+        const visibility = state.weather.hourly.visibility[wIndex];
+
+        const waveHeight = state.marine.hourly.wave_height[mIndex];
+        const wavePeriod = state.marine.hourly.wave_period[mIndex];
+        const waterTemp = state.marine.hourly.sea_surface_temperature[mIndex];
+
+        els.air.textContent = airTemp === null ? '\u2013' : `${Math.round(airTemp)}\u00b0C`;
+        els.weather.textContent = WEATHER_TEXT[weatherCode] || 'Mixed conditions';
+
+        els.water.textContent = waterTemp === null ? '\u2013' : `${Math.round(waterTemp)}\u00b0C`;
+        els.waterComfort.textContent = waterComfort(waterTemp);
+
+        els.waves.textContent = waveHeight === null ? '\u2013' : `${waveHeight.toFixed(1)} m`;
+        const chop = chopDescription(waveHeight);
+        els.chop.textContent = chop.label;
+        els.chopText.textContent = chop.text;
+        setDot(els.chopDot, chop.level);
+
+        const compass = windDir === null ? '' : degToCompass(windDir);
+        els.wind.textContent = windSpeed === null ? '\u2013' : `${compass} ${Math.round(windSpeed)}`;
+        els.gust.textContent = windGust === null ? '\u2013' : `gusts ${Math.round(windGust)} mph`;
+        els.windDirText.textContent = windDir === null ? '\u2013' : `${compass} \u00b7 ${Math.round(windDir)}\u00b0`;
+
+        els.wavePeriod.textContent = wavePeriod === null ? '\u2013' : `~${wavePeriod.toFixed(1)} sec`;
+        els.rainChance.textContent = rainChance === null ? '\u2013' : `${Math.round(rainChance)}%`;
+
+        const visCat = visibilityCategory(visibility);
+        els.visibilityText.textContent = visibility === null ? visCat.label : `${visCat.label} (${(visibility / 1000).toFixed(0)} km)`;
+        setDot(els.visDot, visCat.level);
+        els.sightingText.textContent = visibility === null
+          ? 'Visibility data is not available for this hour.'
+          : `${visCat.label} visibility. ${rainChance !== null && rainChance >= 50 ? 'A reasonable chance of rain may reduce it further.' : 'Bright, dry conditions may bring glare rather than poor visibility.'}`;
+
+        const tide = tideNarrative(state.extremes, targetIso);
+        els.tideState.textContent = tide.state;
+        els.currentText.textContent = tide.text;
+        setDot(els.tideDot, tide.level);
+
+        els.temperatureText.textContent = waterTemp === null
+          ? 'Sea temperature data is not available for this hour.'
+          : `${Math.round(waterTemp)}\u00b0C sea temperature. ${waterComfort(waterTemp)}.`;
+        setDot(els.tempDot, waterTemp !== null && waterTemp < 14 ? 'warning' : 'accent');
+
+        const verdict = computeVerdict({ waveHeight, gustMph: windGust, waterTemp, rainChance, weatherCode });
+        els.verdictLabel.textContent = verdict.label;
+        els.verdictText.textContent = verdict.text;
+        setBadgeLevel(verdict.level);
+      }
+
+      function renderTideTable(){
+        const sorted = [...state.extremes].sort((a, b) => new Date(a.time) - new Date(b.time));
+        const highs = sorted.filter(e => e.type === 'high');
+        const lows = sorted.filter(e => e.type === 'low');
+        els.tideHigh.textContent = highs.length
+          ? highs.map(h => `${formatTimeLabel(h.time)} \u00b7 ${safeFixed(h.height, 1) ?? '\u2013'} m`).join(', ')
+          : '\u2013';
+        els.tideLow.textContent = lows.length
+          ? lows.map(l => `${formatTimeLabel(l.time)} \u00b7 ${safeFixed(l.height, 1) ?? '\u2013'} m`).join(', ')
+          : '\u2013';
+      }
+
+      function setLoading(isLoading){
+        els.loadingBanner.classList.toggle('visible', isLoading);
+        els.refreshBtn.disabled = isLoading;
+        radios.forEach(r => { r.disabled = isLoading; });
+      }
+
+      function showError(message){
+        els.errorText.textContent = message;
+        els.errorBanner.classList.add('visible');
+      }
+
+      function hideError(){
+        els.errorBanner.classList.remove('visible');
+      }
+
+      async function loadForecast(){
+        setLoading(true);
+        hideError();
+        try {
+          const [weatherRes, marineRes] = await Promise.all([
+            fetch(weatherUrl()),
+            fetch(marineUrl())
+          ]);
+
+          if (!weatherRes.ok || !marineRes.ok){
+            throw new Error('The forecast service did not respond correctly. Please try again.');
+          }
+
+          const weatherJson = await weatherRes.json();
+          const marineJson = await marineRes.json();
+
+          if (weatherJson.error || marineJson.error){
+            throw new Error(weatherJson.reason || marineJson.reason || 'The forecast service returned an error.');
+          }
+
+          state.weather = weatherJson;
+          state.marine = marineJson;
+          state.dateStr = weatherJson.hourly.time[0].slice(0, 10);
+          state.extremes = findTideExtremes(marineJson.hourly.time, marineJson.hourly.sea_level_height_msl);
+
+          els.dateHeading.textContent = formatHeaderDate(state.dateStr);
+          els.lastUpdated.textContent = `Updated ${new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })}`;
+
+          renderTideTable();
+          const checked = document.querySelector('input[name="hour"]:checked');
+          render(Number(checked.value));
+        } catch (err){
+          showError(err.message || 'Could not load the forecast. Check your connection and try again.');
+          els.dateHeading.textContent = 'Forecast unavailable';
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      radios.forEach(radio => {
+        radio.addEventListener('change', () => {
+          if (radio.checked && state.weather && state.marine) render(Number(radio.value));
+        });
+      });
+
+      els.refreshBtn.addEventListener('click', loadForecast);
+      els.retryBtn.addEventListener('click', loadForecast);
+
+      loadForecast();
+    })();

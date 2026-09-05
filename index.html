@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src https://api.open-meteo.com https://marine-api.open-meteo.com; style-src 'self'; script-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none';" />
+  <title>Open Water Swim Forecast</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="wrap">
+    <div class="top">
+      <div>
+        <div class="date" id="dateHeading">Loading forecast&hellip;</div>
+        <div class="loc">50.706, -1.908 &middot; Poole/Bournemouth</div>
+      </div>
+      <div id="verdictBadge" class="badge" role="status">
+        <span class="dot"></span>
+        <span id="verdictLabel">Loading&hellip;</span>
+      </div>
+    </div>
+
+    <div class="meta-row">
+      <span class="updated" id="lastUpdated"></span>
+      <button type="button" class="refresh-btn" id="refreshBtn" disabled>Refresh forecast</button>
+    </div>
+
+    <div id="loadingBanner" class="status-banner loading visible" role="status" aria-live="polite">
+      <span class="spinner"></span>
+      <span>Fetching the latest forecast from Open-Meteo&hellip;</span>
+    </div>
+
+    <div id="errorBanner" class="status-banner error" role="alert">
+      <span id="errorText">Something went wrong.</span>
+      <button type="button" class="retry-btn" id="retryBtn">Try again</button>
+    </div>
+
+    <fieldset>
+      <legend class="section-label">Choose swim time</legend>
+      <div class="segmented-control">
+        <input type="radio" name="hour" id="hour-9" value="9" disabled>
+        <label for="hour-9">09:00</label>
+
+        <input type="radio" name="hour" id="hour-10" value="10" checked disabled>
+        <label for="hour-10">10:00</label>
+
+        <input type="radio" name="hour" id="hour-11" value="11" disabled>
+        <label for="hour-11">11:00</label>
+      </div>
+    </fieldset>
+
+    <div class="metrics">
+      <div class="metric">
+        <div class="k">Water</div>
+        <div id="water" class="v">&ndash;</div>
+        <div id="waterComfort" class="s">&nbsp;</div>
+      </div>
+      <div class="metric">
+        <div class="k">Waves</div>
+        <div id="waves" class="v">&ndash;</div>
+        <div id="chop" class="s">&nbsp;</div>
+      </div>
+      <div class="metric">
+        <div class="k">Wind</div>
+        <div id="wind" class="v">&ndash;</div>
+        <div id="gust" class="s">&nbsp;</div>
+      </div>
+      <div class="metric">
+        <div class="k">Air</div>
+        <div id="air" class="v">&ndash;</div>
+        <div id="weather" class="s">&nbsp;</div>
+      </div>
+    </div>
+
+    <section class="card">
+      <h2>What it means for your swim</h2>
+      <div class="impact-row">
+        <div id="chopDot" class="dot success"></div>
+        <div><span class="k-label">Chop:</span> <span class="body" id="chopText">&nbsp;</span></div>
+      </div>
+      <div class="impact-row">
+        <div id="tideDot" class="dot warning"></div>
+        <div><span class="k-label">Tide/current:</span> <span class="body" id="currentText">&nbsp;</span></div>
+      </div>
+      <div class="impact-row">
+        <div id="visDot" class="dot info"></div>
+        <div><span class="k-label">Sighting:</span> <span class="body" id="sightingText">&nbsp;</span></div>
+      </div>
+      <div class="impact-row">
+        <div id="tempDot" class="dot accent"></div>
+        <div><span class="k-label">Temperature:</span> <span class="body" id="temperatureText">&nbsp;</span></div>
+      </div>
+    </section>
+
+    <div class="grid2">
+      <section class="card" style="margin-bottom:0">
+        <h2>Tide (estimated)</h2>
+        <div class="kv"><span>High</span><span id="tideHigh">&ndash;</span></div>
+        <div class="kv"><span>Low</span><span id="tideLow">&ndash;</span></div>
+        <div class="kv"><span>At selected time</span><span id="tideState">&ndash;</span></div>
+        <div class="card-note">Estimated from modelled sea level, not an official tide table. Coastal accuracy is limited.</div>
+      </section>
+
+      <section class="card" style="margin-bottom:0">
+        <h2>Extra conditions</h2>
+        <div class="kv"><span>Wave period</span><span id="wavePeriod">&ndash;</span></div>
+        <div class="kv"><span>Rain chance</span><span id="rainChance">&ndash;</span></div>
+        <div class="kv"><span>Visibility</span><span id="visibilityText">&ndash;</span></div>
+        <div class="kv"><span>Wind direction</span><span id="windDirText">&ndash;</span></div>
+      </section>
+    </div>
+
+    <section class="verdict" aria-live="polite">
+      <div class="title">Swim verdict</div>
+      <div class="body" id="verdictText">Waiting for the latest forecast.</div>
+    </section>
+
+    <details>
+      <summary>Sources and data notes</summary>
+      <p><strong>Weather:</strong> air temperature, weather condition, precipitation chance, visibility, wind speed, direction and gusts, from the <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a> Forecast API, which combines national weather services including the UK Met Office and DWD Germany.</p>
+      <p><strong>Waves and sea temperature:</strong> wave height and period, and sea surface temperature, from the Open-Meteo Marine API.</p>
+      <p><strong>Tide:</strong> high and low tide times shown here are estimated from Open-Meteo's modelled sea level height, not from an official tide table. This is <strong>not a substitute for an authoritative source</strong>. For confirmed UK tide times, check <a href="https://www.admiralty.co.uk/access-data/tidal-data/easy-tide" target="_blank" rel="noopener noreferrer">ADMIRALTY EasyTide</a> directly.</p>
+      <p>Open-Meteo is free for non-commercial use and requires no API key. Both data sets are fetched live from your browser each time you refresh this page.</p>
+      <p>This is a training planning aid, not a safety certification. Always check conditions on the day and follow local safety guidance.</p>
+    </details>
+  </main>
+
+  <script src="main.js"></script>
+</body>
+</html>

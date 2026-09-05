@@ -1,15 +1,17 @@
-// BUILD-16-GEOLOCATION: if you see this comment on GitHub, this JS file is current
+// BUILD-22-UK-DEFAULT-LOCATION: if you see this comment on GitHub, this JS file is current
 (() => {
-  // Used only if the browser can't or won't provide the device's location.
-  const FALLBACK_LAT = 50.706;
-  const FALLBACK_LON = -1.908;
-  const FALLBACK_LOCATION_LABEL = 'Poole/Bournemouth (fallback location)';
+  // Starting point before any search; deliberately not geolocation-derived,
+  // since the device's current position may not be anywhere near open water.
+  const DEFAULT_LAT = 50.706;
+  const DEFAULT_LON = -1.908;
+  const DEFAULT_LOCATION_LABEL = 'Bournemouth, England, United Kingdom';
+  const SEARCH_COUNTRY_CODE = 'GB'; // Search results are filtered to this ISO country code.
   const LONDON_TZ = 'Europe/London';
   const FORECAST_DAYS = 7; // Weather API supports up to 16 days, Marine up to 8; 7 is the shared window.
   const ITEM_WIDTH_PX = 92; // Must match the .time-item flex-basis in styles.css.
 
   const state = {
-    location: null,
+    location: { lat: DEFAULT_LAT, lon: DEFAULT_LON, label: DEFAULT_LOCATION_LABEL },
     weather: null,
     marine: null,
     extremes: [],
@@ -21,7 +23,6 @@
     dateHeading: document.getElementById('dateHeading'),
     locText: document.getElementById('locText'),
     placeDropdown: document.getElementById('placeDropdown'),
-    useCurrentLocationBtn: document.getElementById('useCurrentLocationBtn'),
     placeSearchInput: document.getElementById('placeSearchInput'),
     placeSearchStatus: document.getElementById('placeSearchStatus'),
     placeResults: document.getElementById('placeResults'),
@@ -527,39 +528,13 @@
     els.errorBanner.classList.remove('visible');
   }
 
-  // Resolves the device's current position, falling back to a fixed
-  // location if geolocation is unsupported, denied, or times out, so the
-  // app still functions rather than being left with nothing to fetch.
-  function getCurrentLocation(){
-    return new Promise((resolve) => {
-      if (!('geolocation' in navigator)){
-        resolve({ lat: FALLBACK_LAT, lon: FALLBACK_LON, label: FALLBACK_LOCATION_LABEL });
-        return;
-      }
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          resolve({
-            lat: position.coords.latitude,
-            lon: position.coords.longitude,
-            label: 'Current location'
-          });
-        },
-        () => {
-          resolve({ lat: FALLBACK_LAT, lon: FALLBACK_LON, label: FALLBACK_LOCATION_LABEL });
-        },
-        { enableHighAccuracy: false, timeout: 8000, maximumAge: 5 * 60 * 1000 }
-      );
-    });
-  }
-
   function updateLocationDisplay(){
-    const { lat, lon, label } = state.location;
-    els.locText.textContent = `${lat.toFixed(3)}, ${lon.toFixed(3)} \u00b7 ${label}`;
+    els.locText.textContent = state.location.label;
   }
 
   // Straight-line distance in km, used only to sort search results by
-  // proximity to whatever location is currently active (real, fallback, or
-  // a previously searched place) - not for any forecast calculation.
+  // proximity to whatever location is currently active (the default, or a
+  // previously searched place) - not for any forecast calculation.
   function haversineKm(lat1, lon1, lat2, lon2){
     const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -582,6 +557,30 @@
     const detail = placeDetail(result);
     return detail ? `${result.name}, ${detail}` : result.name;
   }
+
+  // A small curated set of well-known UK coastal/tidal open-water swim
+  // spots, spread across the country, used only to seed "nearby"
+  // suggestions before the person types anything. Free-text search below
+  // isn't limited to this list; it queries the full Geocoding API.
+  const NEARBY_SUGGESTIONS = [
+    { name: 'Brighton', admin1: 'England', country: 'United Kingdom', latitude: 50.8225, longitude: -0.1372 },
+    { name: 'Bournemouth', admin1: 'England', country: 'United Kingdom', latitude: 50.7192, longitude: -1.8808 },
+    { name: 'Weymouth', admin1: 'England', country: 'United Kingdom', latitude: 50.6146, longitude: -2.4590 },
+    { name: 'Swanage', admin1: 'England', country: 'United Kingdom', latitude: 50.6062, longitude: -1.9593 },
+    { name: 'Torquay', admin1: 'England', country: 'United Kingdom', latitude: 50.4619, longitude: -3.5253 },
+    { name: 'Newquay', admin1: 'England', country: 'United Kingdom', latitude: 50.4155, longitude: -5.0870 },
+    { name: 'St Ives', admin1: 'England', country: 'United Kingdom', latitude: 50.2115, longitude: -5.4809 },
+    { name: 'Ilfracombe', admin1: 'England', country: 'United Kingdom', latitude: 51.2100, longitude: -4.1136 },
+    { name: 'Whitstable', admin1: 'England', country: 'United Kingdom', latitude: 51.3617, longitude: 1.0281 },
+    { name: 'Southend-on-Sea', admin1: 'England', country: 'United Kingdom', latitude: 51.5459, longitude: 0.7077 },
+    { name: 'Scarborough', admin1: 'England', country: 'United Kingdom', latitude: 54.2833, longitude: -0.4000 },
+    { name: 'Blackpool', admin1: 'England', country: 'United Kingdom', latitude: 53.8175, longitude: -3.0357 },
+    { name: 'Tenby', admin1: 'Wales', country: 'United Kingdom', latitude: 51.6725, longitude: -4.7003 },
+    { name: 'Aberystwyth', admin1: 'Wales', country: 'United Kingdom', latitude: 52.4140, longitude: -4.0810 },
+    { name: 'Portobello', admin1: 'Scotland', country: 'United Kingdom', latitude: 55.9520, longitude: -3.1180 },
+    { name: 'St Andrews', admin1: 'Scotland', country: 'United Kingdom', latitude: 56.3398, longitude: -2.7967 },
+    { name: 'Portrush', admin1: 'Northern Ireland', country: 'United Kingdom', latitude: 55.2038, longitude: -6.6567 }
+  ];
 
   let searchResults = [];
   let activeResultIndex = -1;
@@ -622,16 +621,17 @@
     loadForecast();
   }
 
-  function renderPlaceResults(results){
-    // Sorted closest-first from whatever location is currently active, so
-    // the ordering makes sense even if the person hasn't granted real
-    // geolocation and is working from the fallback point.
+  // headingText labels the list when it's showing (e.g. "Nearby locations"
+  // for suggestions); live search results are shown with no heading.
+  function renderPlaceResults(results, headingText){
+    // Sorted closest-first from whatever location is currently active.
     searchResults = results
       .map(result => ({
         ...result,
-        distanceKm: state.location ? haversineKm(state.location.lat, state.location.lon, result.latitude, result.longitude) : null
+        distanceKm: haversineKm(state.location.lat, state.location.lon, result.latitude, result.longitude)
       }))
-      .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, 8);
 
     activeResultIndex = -1;
     els.placeResults.textContent = '';
@@ -641,7 +641,7 @@
       return;
     }
 
-    els.placeSearchStatus.textContent = '';
+    els.placeSearchStatus.textContent = headingText || '';
 
     searchResults.forEach((result, index) => {
       const row = document.createElement('div');
@@ -666,7 +666,7 @@
 
       const distanceEl = document.createElement('span');
       distanceEl.className = 'place-option-distance';
-      distanceEl.textContent = result.distanceKm === null ? '' : `${Math.round(result.distanceKm)} km`;
+      distanceEl.textContent = `${Math.round(result.distanceKm)} km`;
 
       row.appendChild(main);
       row.appendChild(distanceEl);
@@ -675,17 +675,24 @@
     });
   }
 
+  function showNearbySuggestions(){
+    renderPlaceResults(NEARBY_SUGGESTIONS, 'Nearby locations');
+  }
+
   async function searchPlaces(query){
     const requestId = ++searchRequestId;
     els.placeSearchStatus.textContent = 'Searching\u2026';
     try {
-      const params = new URLSearchParams({ name: query, count: '8', language: 'en', format: 'json' });
+      // Requesting more than the 8 we display leaves enough headroom after
+      // filtering down to UK-only results.
+      const params = new URLSearchParams({ name: query, count: '20', language: 'en', format: 'json' });
       const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params.toString()}`);
       if (requestId !== searchRequestId) return; // superseded by a later keystroke
       if (!res.ok) throw new Error('Search request failed');
       const json = await res.json();
       if (requestId !== searchRequestId) return;
-      renderPlaceResults(json.results || []);
+      const ukResults = (json.results || []).filter(result => result.country_code === SEARCH_COUNTRY_CODE);
+      renderPlaceResults(ukResults);
     } catch (err){
       if (requestId !== searchRequestId) return;
       els.placeSearchStatus.textContent = 'Could not search right now. Check your connection.';
@@ -693,23 +700,15 @@
     }
   }
 
-  els.placeSearchInput.addEventListener('focus', showDropdown);
-
-  // Delayed so a tap on a result row or the "use current location" button
-  // (which blurs the input first) still gets to register its click before
-  // the dropdown disappears out from under it.
-  els.placeSearchInput.addEventListener('blur', () => {
-    blurHideTimer = setTimeout(hideDropdown, 150);
+  els.placeSearchInput.addEventListener('focus', () => {
+    showDropdown();
+    if (els.placeSearchInput.value.trim().length < 2) showNearbySuggestions();
   });
 
-  els.useCurrentLocationBtn.addEventListener('click', async () => {
-    hideDropdown();
-    els.placeSearchInput.blur();
-    els.loadingText.textContent = 'Finding your location\u2026';
-    setLoading(true);
-    state.location = await getCurrentLocation();
-    updateLocationDisplay();
-    loadForecast();
+  // Delayed so a tap on a result row still gets to register its click
+  // before the dropdown disappears out from under it.
+  els.placeSearchInput.addEventListener('blur', () => {
+    blurHideTimer = setTimeout(hideDropdown, 150);
   });
 
   els.placeSearchInput.addEventListener('input', () => {
@@ -719,8 +718,7 @@
 
     if (query.length < 2){
       searchRequestId += 1; // invalidate any in-flight search
-      els.placeResults.textContent = '';
-      els.placeSearchStatus.textContent = '';
+      showNearbySuggestions();
       return;
     }
 
@@ -815,9 +813,6 @@
   els.refreshBtn.addEventListener('click', loadForecast);
   els.retryBtn.addEventListener('click', loadForecast);
 
-  (async function init(){
-    state.location = await getCurrentLocation();
-    updateLocationDisplay();
-    loadForecast();
-  })();
+  updateLocationDisplay();
+  loadForecast();
 })();

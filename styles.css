@@ -47,6 +47,15 @@
 
     *{box-sizing:border-box}
 
+    /* Hides the page's own scroll indicator (distinct from the time
+       scroller's, which already hides its own further down). */
+    html, body{
+      scrollbar-width:none;
+    }
+    html::-webkit-scrollbar, body::-webkit-scrollbar{
+      display:none;
+    }
+
     body{
       margin:0;
       padding:24px;
@@ -84,6 +93,40 @@
     .loc{
       font-size:0.9375rem;
       color:var(--text-secondary);
+    }
+
+    .loc-row{
+      display:flex;
+      align-items:center;
+      gap:2px;
+    }
+
+    /* Negative margins expand the tap target to 44px without pushing the
+       surrounding layout around; the visible icon stays small. */
+    .loc-change-btn{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      width:44px;
+      height:44px;
+      margin:-10px -8px;
+      border-radius:50%;
+      background:transparent;
+      border:none;
+      color:var(--text-secondary);
+      cursor:pointer;
+      flex:0 0 auto;
+    }
+    .loc-change-btn svg{
+      width:16px;
+      height:16px;
+    }
+    .loc-change-btn:hover{
+      background:var(--bg-secondary);
+    }
+    .loc-change-btn:focus-visible{
+      outline:2px solid var(--accent);
+      outline-offset:2px;
     }
 
     .hero{
@@ -441,6 +484,180 @@
     :focus-visible{
       outline:2px solid var(--accent);
       outline-offset:2px;
+    }
+
+    /* Bottom-sheet presentation for a native <dialog>: the UA centres it by
+       default, so pinning margin-top to auto and margin-bottom to 0 pushes
+       it to the bottom edge instead, with only the top corners rounded. */
+    .location-dialog{
+      border:none;
+      padding:0;
+      width:100%;
+      max-width:640px;
+      max-height:min(85vh, 680px);
+      margin:auto auto 0;
+      border-radius:var(--radius-sheet) var(--radius-sheet) 0 0;
+      background:var(--bg-primary);
+      color:var(--text-primary);
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    }
+
+    .location-dialog::backdrop{
+      background:rgba(0,0,0,0.4);
+    }
+
+    .location-dialog-header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:20px 20px 12px;
+      flex:0 0 auto;
+    }
+
+    .location-dialog-header h2{
+      font-size:1.0625rem;
+      font-weight:700;
+      margin:0;
+    }
+
+    .dialog-close-btn{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      width:44px;
+      height:44px;
+      margin:-10px -10px -10px 0;
+      border-radius:50%;
+      background:var(--bg-secondary);
+      color:var(--text-primary);
+      border:none;
+      cursor:pointer;
+      flex:0 0 auto;
+    }
+    .dialog-close-btn svg{
+      width:18px;
+      height:18px;
+    }
+    .dialog-close-btn:focus-visible{
+      outline:2px solid var(--accent);
+      outline-offset:2px;
+    }
+
+    .location-dialog-body{
+      padding:0 20px max(20px, env(safe-area-inset-bottom));
+      overflow-y:auto;
+      flex:1 1 auto;
+    }
+
+    .use-current-location-btn{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      width:100%;
+      min-height:48px;
+      padding:0 4px;
+      margin-bottom:16px;
+      background:transparent;
+      border:none;
+      color:var(--accent);
+      font-family:inherit;
+      font-size:0.9375rem;
+      font-weight:600;
+      text-align:left;
+      cursor:pointer;
+    }
+    .use-current-location-btn svg{
+      width:20px;
+      height:20px;
+      flex:0 0 auto;
+    }
+    .use-current-location-btn:focus-visible{
+      outline:2px solid var(--accent);
+      outline-offset:2px;
+      border-radius:var(--radius-xs);
+    }
+
+    .place-search-wrap{
+      margin-bottom:12px;
+    }
+
+    .place-search-input{
+      display:block;
+      width:100%;
+      min-height:44px;
+      padding:0 14px;
+      border:none;
+      border-radius:var(--radius-md);
+      background:var(--bg-secondary);
+      color:var(--text-primary);
+      font-family:inherit;
+      font-size:1rem;
+    }
+    .place-search-input::placeholder{
+      color:var(--text-tertiary);
+    }
+    .place-search-input:focus-visible{
+      outline:2px solid var(--accent);
+      outline-offset:2px;
+    }
+
+    .place-search-status{
+      font-size:0.8125rem;
+      color:var(--text-secondary);
+      min-height:1.2em;
+      margin:0 0 8px;
+    }
+
+    .place-results{
+      display:flex;
+      flex-direction:column;
+    }
+
+    .place-option{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      min-height:56px;
+      padding:8px 8px;
+      border-bottom:1px solid var(--separator);
+      cursor:pointer;
+    }
+    .place-option:last-child{
+      border-bottom:none;
+    }
+    .place-option[aria-selected="true"]{
+      background:var(--accent-bg);
+      border-radius:var(--radius-sm);
+    }
+
+    .place-option-main{
+      display:flex;
+      flex-direction:column;
+      min-width:0;
+    }
+    .place-option-name{
+      font-size:0.9375rem;
+      font-weight:600;
+      color:var(--text-primary);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .place-option-detail{
+      font-size:0.8125rem;
+      color:var(--text-secondary);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .place-option-distance{
+      font-size:0.8125rem;
+      color:var(--text-secondary);
+      flex:0 0 auto;
+      white-space:nowrap;
     }
 
     @media (prefers-reduced-motion: reduce){

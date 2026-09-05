@@ -20,6 +20,13 @@
   const els = {
     dateHeading: document.getElementById('dateHeading'),
     locText: document.getElementById('locText'),
+    locChangeBtn: document.getElementById('locChangeBtn'),
+    locationDialog: document.getElementById('locationDialog'),
+    locationDialogClose: document.getElementById('locationDialogClose'),
+    useCurrentLocationBtn: document.getElementById('useCurrentLocationBtn'),
+    placeSearchInput: document.getElementById('placeSearchInput'),
+    placeSearchStatus: document.getElementById('placeSearchStatus'),
+    placeResults: document.getElementById('placeResults'),
     verdictCard: document.getElementById('verdictCard'),
     verdictLabel: document.getElementById('verdictLabel'),
     lastUpdated: document.getElementById('lastUpdated'),
@@ -99,6 +106,12 @@
 
   function safeFixed(value, digits){
     return (value === null || value === undefined || Number.isNaN(value)) ? null : Number(value).toFixed(digits);
+  }
+
+  // Wave and tide heights arrive from the marine API in metres; displayed
+  // in feet throughout, per swimmer preference.
+  function metersToFeet(meters){
+    return (meters === null || meters === undefined || Number.isNaN(meters)) ? null : meters * 3.28084;
   }
 
   // Open-Meteo returns local wall-clock times when a timezone is requested,
@@ -219,19 +232,20 @@
     const stage = hoursSince < 1 ? 'starting' : hoursSince < 2.5 ? 'developing' : 'established';
     const stateLabel = `${trend.charAt(0).toUpperCase()}${trend.slice(1)} ${stage}`;
     const elapsed = hoursSince < 1 ? `${Math.round(hoursSince * 60)} minutes` : `${hoursSince.toFixed(1)} hours`;
-    const heightText = safeFixed(prior.height, 1);
+    const heightText = safeFixed(metersToFeet(prior.height), 1);
     const driftNote = trend === 'ebb' ? 'some lateral drift is possible' : 'a returning flow is likely';
-    const text = `About ${elapsed} after ${prior.type} tide${heightText ? ` (${heightText} m at ${formatTimeLabel(prior.time)})` : ''}. The ${trend} is ${stage}, so ${driftNote}.`;
+    const text = `About ${elapsed} after ${prior.type} tide${heightText ? ` (${heightText} ft at ${formatTimeLabel(prior.time)})` : ''}. The ${trend} is ${stage}, so ${driftNote}.`;
     return { state: stateLabel, text, level: trend === 'ebb' && stage === 'established' ? 'warning' : 'success' };
   }
 
   function chopDescription(height){
     if (height === null) return { label:'No data', text:'Wave data is not available for this hour.', level:'warning' };
+    const heightFeet = metersToFeet(height).toFixed(1);
     if (height < 0.2) return { label:'Flat', text:'Flat to almost flat water.', level:'success' };
-    if (height < 0.4) return { label:'Light chop', text:`Small ${height.toFixed(1)} m waves. Expect light surface movement rather than flat water.`, level:'success' };
-    if (height < 0.7) return { label:'Moderate chop', text:`Moderate ${height.toFixed(1)} m waves. Noticeable chop, manageable for most open-water swimmers.`, level:'warning' };
-    if (height < 1.1) return { label:'Choppy', text:`Choppy ${height.toFixed(1)} m waves. Sighting and breathing will take more effort.`, level:'warning' };
-    return { label:'Rough', text:`Rough ${height.toFixed(1)} m waves. Conditions suit experienced swimmers only.`, level:'destructive' };
+    if (height < 0.4) return { label:'Light chop', text:`Small ${heightFeet} ft waves. Expect light surface movement rather than flat water.`, level:'success' };
+    if (height < 0.7) return { label:'Moderate chop', text:`Moderate ${heightFeet} ft waves. Noticeable chop, manageable for most open-water swimmers.`, level:'warning' };
+    if (height < 1.1) return { label:'Choppy', text:`Choppy ${heightFeet} ft waves. Sighting and breathing will take more effort.`, level:'warning' };
+    return { label:'Rough', text:`Rough ${heightFeet} ft waves. Conditions suit experienced swimmers only.`, level:'destructive' };
   }
 
   // Wetsuit guidance follows Ironman's age-group wetsuit rules (thresholds
@@ -323,7 +337,7 @@
     els.water.textContent = waterTemp === null ? '\u2013' : `${Math.round(waterTemp)}\u00b0C`;
     els.waterComfort.textContent = wetsuitGuidance(waterTemp);
 
-    els.waves.textContent = waveHeight === null ? '\u2013' : `${waveHeight.toFixed(1)} m`;
+    els.waves.textContent = waveHeight === null ? '\u2013' : `${metersToFeet(waveHeight).toFixed(1)} ft`;
     const chop = chopDescription(waveHeight);
     els.chop.textContent = chop.label;
     els.chopText.textContent = chop.text;
@@ -375,8 +389,8 @@
 
   function formatExtreme(extreme){
     if (!extreme) return '\u2013';
-    const heightText = safeFixed(extreme.height, 1);
-    return `${formatTimeLabel(extreme.time)}${heightText ? ` \u00b7 ${heightText} m` : ''}`;
+    const heightText = safeFixed(metersToFeet(extreme.height), 1);
+    return `${formatTimeLabel(extreme.time)}${heightText ? ` \u00b7 ${heightText} ft` : ''}`;
   }
 
   function updateHeading(iso){
@@ -544,6 +558,205 @@
     const { lat, lon, label } = state.location;
     els.locText.textContent = `${lat.toFixed(3)}, ${lon.toFixed(3)} \u00b7 ${label}`;
   }
+
+  // Straight-line distance in km, used only to sort search results by
+  // proximity to whatever location is currently active (real, fallback, or
+  // a previously searched place) - not for any forecast calculation.
+  function haversineKm(lat1, lon1, lat2, lon2){
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2
+      + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  // Builds "England, United Kingdom" from a geocoding result, omitting
+  // admin1 when it duplicates the place name (e.g. Singapore, Singapore).
+  function placeDetail(result){
+    const parts = [];
+    if (result.admin1 && result.admin1 !== result.name) parts.push(result.admin1);
+    if (result.country) parts.push(result.country);
+    return parts.join(', ');
+  }
+
+  function placeLabel(result){
+    const detail = placeDetail(result);
+    return detail ? `${result.name}, ${detail}` : result.name;
+  }
+
+  let searchResults = [];
+  let activeResultIndex = -1;
+  let searchRequestId = 0;
+  let searchDebounceTimer = null;
+  let locationDialogTrigger = null;
+
+  function updateActiveResultUi(){
+    const rows = els.placeResults.querySelectorAll('.place-option');
+    rows.forEach(row => {
+      row.setAttribute('aria-selected', Number(row.dataset.index) === activeResultIndex ? 'true' : 'false');
+    });
+    const activeRow = document.getElementById(`place-opt-${activeResultIndex}`);
+    if (activeRow){
+      els.placeSearchInput.setAttribute('aria-activedescendant', activeRow.id);
+      activeRow.scrollIntoView({ block: 'nearest' });
+    } else {
+      els.placeSearchInput.removeAttribute('aria-activedescendant');
+    }
+  }
+
+  function selectPlace(result){
+    state.location = { lat: result.latitude, lon: result.longitude, label: placeLabel(result) };
+    updateLocationDisplay();
+    els.locationDialog.close();
+    loadForecast();
+  }
+
+  function renderPlaceResults(results){
+    // Sorted closest-first from whatever location is currently active, so
+    // the ordering makes sense even if the person hasn't granted real
+    // geolocation and is working from the fallback point.
+    searchResults = results
+      .map(result => ({
+        ...result,
+        distanceKm: state.location ? haversineKm(state.location.lat, state.location.lon, result.latitude, result.longitude) : null
+      }))
+      .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
+
+    activeResultIndex = -1;
+    els.placeResults.textContent = '';
+    els.placeSearchInput.setAttribute('aria-expanded', searchResults.length ? 'true' : 'false');
+
+    if (!searchResults.length){
+      els.placeSearchStatus.textContent = els.placeSearchInput.value.trim().length >= 2 ? 'No matches found.' : '';
+      return;
+    }
+
+    els.placeSearchStatus.textContent = '';
+
+    searchResults.forEach((result, index) => {
+      const row = document.createElement('div');
+      row.className = 'place-option';
+      row.id = `place-opt-${index}`;
+      row.setAttribute('role', 'option');
+      row.dataset.index = String(index);
+
+      const main = document.createElement('div');
+      main.className = 'place-option-main';
+
+      const nameEl = document.createElement('span');
+      nameEl.className = 'place-option-name';
+      nameEl.textContent = result.name;
+
+      const detailEl = document.createElement('span');
+      detailEl.className = 'place-option-detail';
+      detailEl.textContent = placeDetail(result);
+
+      main.appendChild(nameEl);
+      main.appendChild(detailEl);
+
+      const distanceEl = document.createElement('span');
+      distanceEl.className = 'place-option-distance';
+      distanceEl.textContent = result.distanceKm === null ? '' : `${Math.round(result.distanceKm)} km`;
+
+      row.appendChild(main);
+      row.appendChild(distanceEl);
+      row.addEventListener('click', () => selectPlace(result));
+      els.placeResults.appendChild(row);
+    });
+  }
+
+  async function searchPlaces(query){
+    const requestId = ++searchRequestId;
+    els.placeSearchStatus.textContent = 'Searching\u2026';
+    try {
+      const params = new URLSearchParams({ name: query, count: '8', language: 'en', format: 'json' });
+      const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params.toString()}`);
+      if (requestId !== searchRequestId) return; // superseded by a later keystroke
+      if (!res.ok) throw new Error('Search request failed');
+      const json = await res.json();
+      if (requestId !== searchRequestId) return;
+      renderPlaceResults(json.results || []);
+    } catch (err){
+      if (requestId !== searchRequestId) return;
+      els.placeSearchStatus.textContent = 'Could not search right now. Check your connection.';
+      renderPlaceResults([]);
+    }
+  }
+
+  function openLocationDialog(){
+    locationDialogTrigger = document.activeElement;
+    els.placeSearchInput.value = '';
+    els.placeSearchStatus.textContent = '';
+    els.placeResults.textContent = '';
+    els.placeSearchInput.setAttribute('aria-expanded', 'false');
+    els.placeSearchInput.removeAttribute('aria-activedescendant');
+    searchResults = [];
+    activeResultIndex = -1;
+    els.locationDialog.showModal();
+    els.placeSearchInput.focus();
+  }
+
+  els.locChangeBtn.addEventListener('click', openLocationDialog);
+  els.locationDialogClose.addEventListener('click', () => els.locationDialog.close());
+
+  // Clicking the backdrop lands on the dialog element itself (not a
+  // descendant), which is the standard way to detect a backdrop tap.
+  els.locationDialog.addEventListener('click', (event) => {
+    if (event.target === els.locationDialog) els.locationDialog.close();
+  });
+
+  // Fires on every close path (Escape, backdrop tap, the close button, or
+  // selecting a place), so cleanup and focus restoration only live here once.
+  els.locationDialog.addEventListener('close', () => {
+    if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+    searchRequestId += 1;
+    if (locationDialogTrigger && typeof locationDialogTrigger.focus === 'function'){
+      locationDialogTrigger.focus();
+    }
+  });
+
+  els.useCurrentLocationBtn.addEventListener('click', async () => {
+    els.locationDialog.close();
+    els.loadingText.textContent = 'Finding your location\u2026';
+    setLoading(true);
+    state.location = await getCurrentLocation();
+    updateLocationDisplay();
+    loadForecast();
+  });
+
+  els.placeSearchInput.addEventListener('input', () => {
+    const query = els.placeSearchInput.value.trim();
+    if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+    activeResultIndex = -1;
+
+    if (query.length < 2){
+      searchRequestId += 1; // invalidate any in-flight search
+      els.placeResults.textContent = '';
+      els.placeSearchInput.setAttribute('aria-expanded', 'false');
+      els.placeSearchStatus.textContent = '';
+      return;
+    }
+
+    searchDebounceTimer = setTimeout(() => searchPlaces(query), 300);
+  });
+
+  els.placeSearchInput.addEventListener('keydown', (event) => {
+    if (!searchResults.length) return;
+    if (event.key === 'ArrowDown'){
+      event.preventDefault();
+      activeResultIndex = Math.min(activeResultIndex + 1, searchResults.length - 1);
+      updateActiveResultUi();
+    } else if (event.key === 'ArrowUp'){
+      event.preventDefault();
+      activeResultIndex = Math.max(activeResultIndex - 1, 0);
+      updateActiveResultUi();
+    } else if (event.key === 'Enter'){
+      event.preventDefault();
+      const index = activeResultIndex === -1 ? 0 : activeResultIndex;
+      if (searchResults[index]) selectPlace(searchResults[index]);
+    }
+  });
 
   // Only hours present in both APIs' responses, from the current hour
   // onward, are offered on the wheel, so every selectable time is

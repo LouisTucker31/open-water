@@ -4,6 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src https://api.open-meteo.com https://marine-api.open-meteo.com; style-src 'self'; script-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none';" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
   <title>Open Water Swim Forecast</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -35,19 +39,18 @@
       <button type="button" class="retry-btn" id="retryBtn">Try again</button>
     </div>
 
-    <fieldset>
-      <legend class="section-label">Choose swim time</legend>
-      <div class="segmented-control">
-        <input type="radio" name="hour" id="hour-9" value="9" disabled>
-        <label for="hour-9">09:00</label>
-
-        <input type="radio" name="hour" id="hour-10" value="10" checked disabled>
-        <label for="hour-10">10:00</label>
-
-        <input type="radio" name="hour" id="hour-11" value="11" disabled>
-        <label for="hour-11">11:00</label>
-      </div>
-    </fieldset>
+    <div class="section-label" id="wheelLabel">Choose forecast time</div>
+    <div class="time-wheel-wrap">
+      <div class="time-wheel-highlight" aria-hidden="true"></div>
+      <div
+        class="time-wheel"
+        id="timeWheel"
+        role="listbox"
+        aria-labelledby="wheelLabel"
+        aria-disabled="true"
+      ></div>
+    </div>
+    <p class="wheel-hint">Scroll or use the arrow keys to pick an hour, from now to 7 days ahead.</p>
 
     <div class="metrics">
       <div class="metric">

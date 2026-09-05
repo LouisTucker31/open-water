@@ -19,9 +19,12 @@
         <div class="loc">50.706, -1.908 &middot; Poole/Bournemouth</div>
       </div>
       <button type="button" class="refresh-icon-btn" id="refreshBtn" aria-label="Refresh forecast" disabled>
+        <!-- Icon adapted from Lucide's "refresh-cw" (ISC licence, lucide.dev) -->
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M21 12a9 9 0 1 1-3-6.7"></path>
-          <polyline points="21 3 21 9 15 9"></polyline>
+          <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+          <path d="M3 3v5h5"></path>
+          <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
+          <path d="M16 16h5v5"></path>
         </svg>
       </button>
     </div>
@@ -47,18 +50,18 @@
       <button type="button" class="retry-btn" id="retryBtn">Try again</button>
     </div>
 
-    <div class="section-label" id="wheelLabel">Choose forecast time</div>
-    <div class="time-wheel-wrap">
-      <div class="time-wheel-highlight" aria-hidden="true"></div>
-      <div
-        class="time-wheel"
-        id="timeWheel"
-        role="listbox"
-        aria-labelledby="wheelLabel"
-        aria-disabled="true"
-      ></div>
+    <div class="section-label" id="timeLabel">Choose forecast time</div>
+    <div class="time-picker-wrap">
+      <input
+        type="datetime-local"
+        id="timeInput"
+        class="time-picker-input"
+        step="3600"
+        aria-labelledby="timeLabel"
+        disabled
+      >
     </div>
-    <p class="wheel-hint">Scroll or use the up/down arrow keys to pick an hour, from now to 7 days ahead.</p>
+    <p class="time-picker-hint">Tap to open the picker and choose a time, from now to 7 days ahead.</p>
 
     <div class="metrics">
       <div class="metric">
@@ -130,7 +133,7 @@
       <p>This is a training planning aid, not a safety certification. Always check conditions on the day and follow local safety guidance.</p>
     </details>
 
-    <p class="build-stamp">BUILD-13-VERDICT-TILE</p>
+    <p class="build-stamp">BUILD-14-NATIVE-PICKER</p>
   </main>
 
   <script src="main.js"></script>

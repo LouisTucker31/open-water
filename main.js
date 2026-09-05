@@ -1,12 +1,9 @@
-// BUILD-12-JS-FIX: if you see this comment on GitHub, this JS file is current
+// BUILD-14-NATIVE-PICKER: if you see this comment on GitHub, this JS file is current
 (() => {
   const LAT = 50.706;
   const LON = -1.908;
   const LONDON_TZ = 'Europe/London';
   const FORECAST_DAYS = 7; // Weather API supports up to 16 days, Marine up to 8; 7 is the shared window.
-  const ROW_HEIGHT_PX = 44;
-  const VISIBLE_ROWS = 3;
-  const PAD_ROWS = Math.floor(VISIBLE_ROWS / 2);
 
   const state = {
     weather: null,
@@ -26,7 +23,7 @@
     errorBanner: document.getElementById('errorBanner'),
     errorText: document.getElementById('errorText'),
     retryBtn: document.getElementById('retryBtn'),
-    timeWheel: document.getElementById('timeWheel'),
+    timeInput: document.getElementById('timeInput'),
     water: document.getElementById('water'),
     waterComfort: document.getElementById('waterComfort'),
     waves: document.getElementById('waves'),
@@ -75,19 +72,6 @@
     const [y, m, d] = dateStr.split('-').map(Number);
     const dt = new Date(Date.UTC(y, m - 1, d));
     return dt.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', timeZone:'UTC' });
-  }
-
-  function formatShortDate(dateStr){
-    const [y, m, d] = dateStr.split('-').map(Number);
-    const dt = new Date(Date.UTC(y, m - 1, d));
-    return dt.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'UTC' });
-  }
-
-  function addDaysToIsoDate(dateStr, days){
-    const [y, m, d] = dateStr.split('-').map(Number);
-    const dt = new Date(Date.UTC(y, m - 1, d));
-    dt.setUTCDate(dt.getUTCDate() + days);
-    return dt.toISOString().slice(0, 10);
   }
 
   function formatTimeLabel(isoTime){
@@ -365,52 +349,6 @@
     els.dateHeading.textContent = `${formatHeaderDate(datePart)} \u00b7 ${formatTimeLabel(iso)}`;
   }
 
-  // Builds the scrollable rows fresh each time the forecast reloads, since
-  // the available hour range shifts as "now" moves forward.
-  function buildWheelRows(){
-    const container = els.timeWheel;
-    container.textContent = '';
-
-    const topPad = document.createElement('div');
-    topPad.style.height = `${PAD_ROWS * ROW_HEIGHT_PX}px`;
-    topPad.setAttribute('aria-hidden', 'true');
-    container.appendChild(topPad);
-
-    const todayIso = getLondonNowHourIso().slice(0, 10);
-    const tomorrowIso = addDaysToIsoDate(todayIso, 1);
-
-    state.times.forEach((iso, index) => {
-      const datePart = iso.slice(0, 10);
-      const dateLabel = datePart === todayIso ? 'Today' : datePart === tomorrowIso ? 'Tomorrow' : formatShortDate(datePart);
-      const row = document.createElement('div');
-      row.className = 'time-wheel-row';
-      row.id = `time-opt-${index}`;
-      row.setAttribute('role', 'option');
-      row.dataset.index = String(index);
-      row.textContent = `${dateLabel} \u00b7 ${formatTimeLabel(iso)}`;
-      row.addEventListener('click', () => selectIndex(index, true));
-      container.appendChild(row);
-    });
-
-    const bottomPad = document.createElement('div');
-    bottomPad.style.height = `${PAD_ROWS * ROW_HEIGHT_PX}px`;
-    bottomPad.setAttribute('aria-hidden', 'true');
-    container.appendChild(bottomPad);
-  }
-
-  function updateWheelSelectionUi(){
-    const rows = els.timeWheel.querySelectorAll('.time-wheel-row');
-    rows.forEach(row => {
-      row.setAttribute('aria-selected', Number(row.dataset.index) === state.selectedIndex ? 'true' : 'false');
-    });
-    const selectedRow = document.getElementById(`time-opt-${state.selectedIndex}`);
-    if (selectedRow) els.timeWheel.setAttribute('aria-activedescendant', selectedRow.id);
-  }
-
-  function scrollWheelToIndex(index, smooth){
-    els.timeWheel.scrollTo({ top: index * ROW_HEIGHT_PX, behavior: smooth ? 'smooth' : 'auto' });
-  }
-
   function renderSelected(){
     const iso = state.times[state.selectedIndex];
     if (!iso) return;
@@ -418,31 +356,24 @@
     updateHeading(iso);
   }
 
-  function selectIndex(index, smoothScroll){
+  // Open-Meteo's hourly ISO strings ("YYYY-MM-DDTHH:mm") are already in the
+  // exact format the datetime-local input uses for its value, min and max,
+  // so no conversion is needed either direction.
+  els.timeInput.addEventListener('change', () => {
     if (!state.times.length) return;
-    const clamped = Math.max(0, Math.min(state.times.length - 1, index));
-    state.selectedIndex = clamped;
-    updateWheelSelectionUi();
-    scrollWheelToIndex(clamped, smoothScroll);
+    let index = state.times.indexOf(els.timeInput.value);
+    if (index === -1){
+      // A browser that ignores the step attribute could return a value off
+      // the hourly grid, so snap to the closest available hour rather than
+      // silently failing to render anything.
+      const target = new Date(els.timeInput.value);
+      index = state.times.reduce((closest, iso, i) => {
+        return Math.abs(new Date(iso) - target) < Math.abs(new Date(state.times[closest]) - target) ? i : closest;
+      }, 0);
+      els.timeInput.value = state.times[index];
+    }
+    state.selectedIndex = index;
     renderSelected();
-  }
-
-  let scrollSettleTimer = null;
-  els.timeWheel.addEventListener('scroll', () => {
-    if (scrollSettleTimer) clearTimeout(scrollSettleTimer);
-    scrollSettleTimer = setTimeout(() => {
-      if (!state.times.length) return;
-      const nearestIndex = Math.round(els.timeWheel.scrollTop / ROW_HEIGHT_PX);
-      if (nearestIndex !== state.selectedIndex) selectIndex(nearestIndex, false);
-    }, 120);
-  }, { passive: true });
-
-  els.timeWheel.addEventListener('keydown', (event) => {
-    if (!state.times.length) return;
-    if (event.key === 'ArrowDown'){ event.preventDefault(); selectIndex(state.selectedIndex + 1, true); }
-    else if (event.key === 'ArrowUp'){ event.preventDefault(); selectIndex(state.selectedIndex - 1, true); }
-    else if (event.key === 'Home'){ event.preventDefault(); selectIndex(0, true); }
-    else if (event.key === 'End'){ event.preventDefault(); selectIndex(state.times.length - 1, true); }
   });
 
   function setLoading(isLoading){
@@ -450,9 +381,7 @@
     els.refreshBtn.disabled = isLoading;
     els.refreshBtn.classList.toggle('spinning', isLoading);
     els.refreshBtn.setAttribute('aria-label', isLoading ? 'Refreshing forecast' : 'Refresh forecast');
-    els.timeWheel.classList.toggle('disabled', isLoading);
-    els.timeWheel.setAttribute('aria-disabled', isLoading ? 'true' : 'false');
-    els.timeWheel.tabIndex = isLoading ? -1 : 0;
+    if (isLoading) els.timeInput.disabled = true;
   }
 
   function showError(message){
@@ -508,9 +437,10 @@
       }
 
       state.selectedIndex = 0;
-      buildWheelRows();
-      updateWheelSelectionUi();
-      scrollWheelToIndex(0, false);
+      els.timeInput.min = state.times[0];
+      els.timeInput.max = state.times[state.times.length - 1];
+      els.timeInput.value = state.times[0];
+      els.timeInput.disabled = false;
 
       els.lastUpdated.textContent = `Updated ${new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })}`;
 
@@ -518,7 +448,8 @@
     } catch (err){
       showError(err.message || 'Could not load the forecast. Check your connection and try again.');
       els.dateHeading.textContent = 'Forecast unavailable';
-      els.timeWheel.textContent = '';
+      els.timeInput.disabled = true;
+      els.timeInput.value = '';
       state.times = [];
     } finally {
       setLoading(false);

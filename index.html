@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
   <title>Open Water Swim Forecast</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="build10_styles.css">
 </head>
 <body>
   <main class="wrap">
@@ -18,16 +18,22 @@
         <div class="date" id="dateHeading">Loading forecast&hellip;</div>
         <div class="loc">50.706, -1.908 &middot; Poole/Bournemouth</div>
       </div>
+      <button type="button" class="refresh-icon-btn" id="refreshBtn" aria-label="Refresh forecast" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12a9 9 0 1 1-3-6.7"></path>
+          <polyline points="21 3 21 9 15 9"></polyline>
+        </svg>
+      </button>
+    </div>
+
+    <section class="hero" aria-live="polite">
       <div id="verdictBadge" class="badge" role="status">
         <span class="dot"></span>
         <span id="verdictLabel">Loading&hellip;</span>
       </div>
-    </div>
-
-    <div class="meta-row">
+      <p class="hero-text" id="verdictText">Waiting for the latest forecast.</p>
       <span class="updated" id="lastUpdated"></span>
-      <button type="button" class="refresh-btn" id="refreshBtn" disabled>Refresh forecast</button>
-    </div>
+    </section>
 
     <div id="loadingBanner" class="status-banner loading visible" role="status" aria-live="polite">
       <span class="spinner"></span>
@@ -50,7 +56,7 @@
         aria-disabled="true"
       ></div>
     </div>
-    <p class="wheel-hint">Scroll or use the arrow keys to pick an hour, from now to 7 days ahead.</p>
+    <p class="wheel-hint">Scroll or use the up/down arrow keys to pick an hour, from now to 7 days ahead.</p>
 
     <div class="metrics">
       <div class="metric">
@@ -96,15 +102,15 @@
     </section>
 
     <div class="grid2">
-      <section class="card" style="margin-bottom:0">
+      <section class="card card--flush">
         <h2>Tide (estimated)</h2>
-        <div class="kv"><span>High</span><span id="tideHigh">&ndash;</span></div>
-        <div class="kv"><span>Low</span><span id="tideLow">&ndash;</span></div>
+        <div class="kv"><span>Next high</span><span id="tideNextHigh">&ndash;</span></div>
+        <div class="kv"><span>Next low</span><span id="tideNextLow">&ndash;</span></div>
         <div class="kv"><span>At selected time</span><span id="tideState">&ndash;</span></div>
         <div class="card-note">Estimated from modelled sea level, not an official tide table. Coastal accuracy is limited.</div>
       </section>
 
-      <section class="card" style="margin-bottom:0">
+      <section class="card card--flush">
         <h2>Extra conditions</h2>
         <div class="kv"><span>Wave period</span><span id="wavePeriod">&ndash;</span></div>
         <div class="kv"><span>Rain chance</span><span id="rainChance">&ndash;</span></div>
@@ -112,11 +118,6 @@
         <div class="kv"><span>Wind direction</span><span id="windDirText">&ndash;</span></div>
       </section>
     </div>
-
-    <section class="verdict" aria-live="polite">
-      <div class="title">Swim verdict</div>
-      <div class="body" id="verdictText">Waiting for the latest forecast.</div>
-    </section>
 
     <details>
       <summary>Sources and data notes</summary>
@@ -126,8 +127,10 @@
       <p>Open-Meteo is free for non-commercial use and requires no API key. Both data sets are fetched live from your browser each time you refresh this page.</p>
       <p>This is a training planning aid, not a safety certification. Always check conditions on the day and follow local safety guidance.</p>
     </details>
+
+    <p class="build-stamp">BUILD-10-NEVER-SEEN-BEFORE</p>
   </main>
 
-  <script src="main.js"></script>
+  <script src="build10_main.js"></script>
 </body>
 </html>

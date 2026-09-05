@@ -87,14 +87,13 @@
     }
 
     .badge{
-      display:inline-flex;
+      display:flex;
       align-items:center;
       gap:8px;
       border-radius:var(--radius-capsule);
       padding:10px 16px;
       font-size:0.9375rem;
       font-weight:600;
-      line-height:1;
       white-space:nowrap;
       background:var(--success-bg);
       color:var(--text-primary);
@@ -107,63 +106,41 @@
       width:8px;height:8px;border-radius:50%;
       background:var(--success);
       flex:0 0 auto;
-      display:block;
-      margin-top:-2px;
     }
     .badge.warning .dot{background:var(--warning)}
     .badge.destructive .dot{background:var(--destructive)}
 
-    .badge span:last-child{
-      display:inline-flex;
+    .meta-row{
+      display:flex;
+      justify-content:space-between;
       align-items:center;
-      line-height:1;
-    }
-
-    .hero{
+      gap:8px;
       margin-bottom:20px;
-    }
-
-    .hero .badge{
-      margin-bottom:10px;
-    }
-
-    .hero-text{
-      font-size:1.0625rem;
-      color:var(--text-primary);
-      margin:0 0 8px;
-      line-height:1.4;
+      flex-wrap:wrap;
     }
 
     .updated{
-      display:block;
       font-size:0.8125rem;
       color:var(--text-secondary);
     }
 
-    .refresh-icon-btn{
-      display:flex;
+    .refresh-btn{
+      display:inline-flex;
       align-items:center;
-      justify-content:center;
-      width:44px;
-      height:44px;
-      border-radius:50%;
+      gap:6px;
+      min-height:36px;
+      padding:6px 14px;
+      border-radius:var(--radius-capsule);
       background:var(--bg-secondary);
       color:var(--text-primary);
+      font-size:0.8125rem;
+      font-weight:600;
       border:none;
       cursor:pointer;
-      flex:0 0 auto;
       transition:background-color 150ms ease;
     }
-    .refresh-icon-btn svg{
-      width:20px;
-      height:20px;
-      display:block;
-    }
-    .refresh-icon-btn:hover{background:var(--accent-bg)}
-    .refresh-icon-btn:disabled{opacity:0.5; cursor:default}
-    .refresh-icon-btn.spinning svg{
-      animation:spin 800ms linear infinite;
-    }
+    .refresh-btn:hover{background:var(--accent-bg)}
+    .refresh-btn:disabled{opacity:0.5; cursor:default}
 
     .status-banner{
       display:none;
@@ -221,16 +198,16 @@
       overflow:hidden;
     }
 
-    /* Fixed-height viewport showing 3 rows (44px each); the wheel scrolls
+    /* Fixed-height viewport showing 5 rows (44px each); the wheel scrolls
        behind it with scroll-snap doing the settling, not custom JS physics. */
     .time-wheel{
-      height:132px;
+      height:220px;
       overflow-y:scroll;
       scroll-snap-type:y mandatory;
       -webkit-overflow-scrolling:touch;
       scrollbar-width:none;
-      -webkit-mask-image:linear-gradient(to bottom, transparent 0, black 25%, black 75%, transparent 100%);
-      mask-image:linear-gradient(to bottom, transparent 0, black 25%, black 75%, transparent 100%);
+      -webkit-mask-image:linear-gradient(to bottom, transparent 0, black 30%, black 70%, transparent 100%);
+      mask-image:linear-gradient(to bottom, transparent 0, black 30%, black 70%, transparent 100%);
     }
 
     .time-wheel::-webkit-scrollbar{
@@ -319,10 +296,6 @@
       margin-bottom:12px;
     }
 
-    .card--flush{
-      margin-bottom:0;
-    }
-
     .card h2{
       font-size:1.0625rem;
       font-weight:600;
@@ -383,11 +356,22 @@
       margin-top:10px;
     }
 
-    .build-stamp{
-      text-align:center;
-      font-size:0.6875rem;
-      color:var(--text-tertiary);
-      margin:16px 0 0;
+    .verdict{
+      background:var(--bg-secondary);
+      border-radius:var(--radius-lg);
+      padding:16px;
+      margin-top:4px;
+    }
+
+    .verdict .title{
+      font-weight:700;
+      margin-bottom:4px;
+      color:var(--text-primary);
+    }
+
+    .verdict .body{
+      color:var(--text-secondary);
+      font-size:0.9375rem;
     }
 
     details{

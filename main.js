@@ -1,11 +1,10 @@
-// BUILD-12-JS-FIX: if you see this comment on GitHub, this JS file is current
 (() => {
   const LAT = 50.706;
   const LON = -1.908;
   const LONDON_TZ = 'Europe/London';
   const FORECAST_DAYS = 7; // Weather API supports up to 16 days, Marine up to 8; 7 is the shared window.
   const ROW_HEIGHT_PX = 44;
-  const VISIBLE_ROWS = 3;
+  const VISIBLE_ROWS = 5;
   const PAD_ROWS = Math.floor(VISIBLE_ROWS / 2);
 
   const state = {
@@ -43,8 +42,8 @@
     sightingText: document.getElementById('sightingText'),
     tempDot: document.getElementById('tempDot'),
     temperatureText: document.getElementById('temperatureText'),
-    tideNextHigh: document.getElementById('tideNextHigh'),
-    tideNextLow: document.getElementById('tideNextLow'),
+    tideHigh: document.getElementById('tideHigh'),
+    tideLow: document.getElementById('tideLow'),
     tideState: document.getElementById('tideState'),
     wavePeriod: document.getElementById('wavePeriod'),
     rainChance: document.getElementById('rainChance'),
@@ -329,8 +328,6 @@
     els.tideState.textContent = tide.state;
     els.currentText.textContent = tide.text;
     setDot(els.tideDot, tide.level);
-    els.tideNextHigh.textContent = formatExtreme(nextExtreme(state.extremes, iso, 'high'));
-    els.tideNextLow.textContent = formatExtreme(nextExtreme(state.extremes, iso, 'low'));
 
     els.temperatureText.textContent = waterTemp === null
       ? 'Sea temperature data is not available for this hour.'
@@ -343,21 +340,16 @@
     setBadgeLevel(verdict.level);
   }
 
-  // Finds the nearest upcoming high or low tide event after the selected
-  // time, so the tide card can show what's coming next rather than every
-  // event across the whole fetched forecast window.
-  function nextExtreme(extremes, selectedIso, type){
-    const selectedDate = new Date(selectedIso);
-    const upcoming = extremes
-      .filter(e => e.type === type && new Date(e.time) > selectedDate)
-      .sort((a, b) => new Date(a.time) - new Date(b.time));
-    return upcoming[0] || null;
-  }
-
-  function formatExtreme(extreme){
-    if (!extreme) return '\u2013';
-    const heightText = safeFixed(extreme.height, 1);
-    return `${formatTimeLabel(extreme.time)}${heightText ? ` \u00b7 ${heightText} m` : ''}`;
+  function renderTideTable(){
+    const sorted = [...state.extremes].sort((a, b) => new Date(a.time) - new Date(b.time));
+    const highs = sorted.filter(e => e.type === 'high');
+    const lows = sorted.filter(e => e.type === 'low');
+    els.tideHigh.textContent = highs.length
+      ? highs.map(h => `${formatTimeLabel(h.time)} \u00b7 ${safeFixed(h.height, 1) ?? '\u2013'} m`).join(', ')
+      : '\u2013';
+    els.tideLow.textContent = lows.length
+      ? lows.map(l => `${formatTimeLabel(l.time)} \u00b7 ${safeFixed(l.height, 1) ?? '\u2013'} m`).join(', ')
+      : '\u2013';
   }
 
   function updateHeading(iso){
@@ -448,8 +440,6 @@
   function setLoading(isLoading){
     els.loadingBanner.classList.toggle('visible', isLoading);
     els.refreshBtn.disabled = isLoading;
-    els.refreshBtn.classList.toggle('spinning', isLoading);
-    els.refreshBtn.setAttribute('aria-label', isLoading ? 'Refreshing forecast' : 'Refresh forecast');
     els.timeWheel.classList.toggle('disabled', isLoading);
     els.timeWheel.setAttribute('aria-disabled', isLoading ? 'true' : 'false');
     els.timeWheel.tabIndex = isLoading ? -1 : 0;
@@ -514,6 +504,7 @@
 
       els.lastUpdated.textContent = `Updated ${new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })}`;
 
+      renderTideTable();
       renderSelected();
     } catch (err){
       showError(err.message || 'Could not load the forecast. Check your connection and try again.');

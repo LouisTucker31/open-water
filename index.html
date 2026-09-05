@@ -16,16 +16,7 @@
     <div class="top">
       <div>
         <div class="date" id="dateHeading">Loading forecast&hellip;</div>
-        <div class="loc-row">
-          <span class="loc" id="locText">Finding your location&hellip;</span>
-          <button type="button" class="loc-change-btn" id="locChangeBtn" aria-label="Change location">
-            <!-- Icon adapted from Lucide's "map-pin" (ISC licence, lucide.dev) -->
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"></path>
-              <circle cx="12" cy="10" r="3"></circle>
-            </svg>
-          </button>
-        </div>
+        <div class="loc" id="locText">Finding your location&hellip;</div>
       </div>
       <button type="button" class="refresh-icon-btn" id="refreshBtn" aria-label="Refresh forecast" disabled>
         <!-- Icon adapted from Lucide's "refresh-cw" (ISC licence, lucide.dev) -->
@@ -57,6 +48,42 @@
     <div id="errorBanner" class="status-banner error" role="alert">
       <span id="errorText">Something went wrong.</span>
       <button type="button" class="retry-btn" id="retryBtn">Try again</button>
+    </div>
+
+    <div class="section-label" id="placeSearchLabel">Search for a location</div>
+    <div class="search-bar-wrap" id="searchBarWrap">
+      <svg class="search-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input
+        type="search"
+        id="placeSearchInput"
+        class="search-bar-input"
+        placeholder="Search for a place"
+        autocomplete="off"
+        enterkeyhint="search"
+        aria-autocomplete="list"
+        aria-controls="placeResults"
+        aria-expanded="false"
+        aria-labelledby="placeSearchLabel"
+      >
+      <div class="search-dropdown" id="placeDropdown" hidden>
+        <button type="button" class="use-current-location-btn" id="useCurrentLocationBtn">
+          <!-- Icon adapted from Lucide's "locate-fixed" (ISC licence, lucide.dev) -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M2 12h3"></path>
+            <path d="M19 12h3"></path>
+            <path d="M12 2v3"></path>
+            <path d="M12 19v3"></path>
+            <circle cx="12" cy="12" r="7"></circle>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+          Use current location
+        </button>
+        <p class="place-search-status" id="placeSearchStatus" aria-live="polite"></p>
+        <div class="place-results" id="placeResults" role="listbox" aria-label="Search results"></div>
+      </div>
     </div>
 
     <div class="section-label" id="timeLabel">Choose forecast time</div>
@@ -139,59 +166,14 @@
       <p><strong>Waves and sea temperature:</strong> wave height and period, and sea surface temperature, from the Open-Meteo Marine API.</p>
       <p><strong>Tide:</strong> high and low tide times shown here are estimated from Open-Meteo's modelled sea level height, not from an official tide table. This is <strong>not a substitute for an authoritative source</strong>. For confirmed UK tide times, check <a href="https://www.admiralty.co.uk/access-data/tidal-data/easy-tide" target="_blank" rel="noopener noreferrer">ADMIRALTY EasyTide</a> directly.</p>
       <p>Open-Meteo is free for non-commercial use and requires no API key. Both data sets are fetched live from your browser each time you refresh this page.</p>
-      <p><strong>Your location:</strong> used only to fetch forecast data for where you are, sent to Open-Meteo along with each request. It is not stored and is not sent anywhere else. If location access is unavailable or declined, the forecast falls back to Poole/Bournemouth. You can also search for a different place using the location button next to the date.</p>
+      <p><strong>Your location:</strong> used only to fetch forecast data for where you are, sent to Open-Meteo along with each request. It is not stored and is not sent anywhere else. If location access is unavailable or declined, the forecast falls back to Poole/Bournemouth. You can also search for a different place using the search bar above the time picker.</p>
       <p><strong>Place search:</strong> place names and coordinates come from the Open-Meteo Geocoding API. Your search text is sent to Open-Meteo to find matches; it is not stored anywhere else.</p>
       <p><strong>Wetsuit guidance:</strong> based on Ironman's age-group wetsuit rules: mandatory below 16&deg;C, legal up to and including 24.5&deg;C, optional without award eligibility up to 28.8&deg;C, and banned above that. Professional-athlete limits and other federations' rules differ, and race organisers make the official call on the day.</p>
       <p>This is a training planning aid, not a safety certification. Always check conditions on the day and follow local safety guidance.</p>
     </details>
 
-    <p class="build-stamp">BUILD-20-LOCATION-SEARCH</p>
+    <p class="build-stamp">BUILD-21-INLINE-SEARCH</p>
   </main>
-
-  <dialog id="locationDialog" class="location-dialog" aria-labelledby="locationDialogTitle">
-    <div class="location-dialog-header">
-      <h2 id="locationDialogTitle">Choose a location</h2>
-      <button type="button" class="dialog-close-btn" id="locationDialogClose" aria-label="Close">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M18 6 6 18"></path>
-          <path d="m6 6 12 12"></path>
-        </svg>
-      </button>
-    </div>
-
-    <div class="location-dialog-body">
-      <button type="button" class="use-current-location-btn" id="useCurrentLocationBtn">
-        <!-- Icon adapted from Lucide's "locate-fixed" (ISC licence, lucide.dev) -->
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M2 12h3"></path>
-          <path d="M19 12h3"></path>
-          <path d="M12 2v3"></path>
-          <path d="M12 19v3"></path>
-          <circle cx="12" cy="12" r="7"></circle>
-          <circle cx="12" cy="12" r="3"></circle>
-        </svg>
-        Use current location
-      </button>
-
-      <div class="place-search-wrap">
-        <input
-          type="search"
-          id="placeSearchInput"
-          class="place-search-input"
-          placeholder="Search for a place"
-          autocomplete="off"
-          enterkeyhint="search"
-          aria-autocomplete="list"
-          aria-controls="placeResults"
-          aria-expanded="false"
-        >
-      </div>
-
-      <p class="place-search-status" id="placeSearchStatus" aria-live="polite"></p>
-
-      <div class="place-results" id="placeResults" role="listbox" aria-label="Search results"></div>
-    </div>
-  </dialog>
 
   <script src="main.js"></script>
 </body>

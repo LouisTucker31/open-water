@@ -20,9 +20,7 @@
   const els = {
     dateHeading: document.getElementById('dateHeading'),
     locText: document.getElementById('locText'),
-    locChangeBtn: document.getElementById('locChangeBtn'),
-    locationDialog: document.getElementById('locationDialog'),
-    locationDialogClose: document.getElementById('locationDialogClose'),
+    placeDropdown: document.getElementById('placeDropdown'),
     useCurrentLocationBtn: document.getElementById('useCurrentLocationBtn'),
     placeSearchInput: document.getElementById('placeSearchInput'),
     placeSearchStatus: document.getElementById('placeSearchStatus'),
@@ -589,7 +587,7 @@
   let activeResultIndex = -1;
   let searchRequestId = 0;
   let searchDebounceTimer = null;
-  let locationDialogTrigger = null;
+  let blurHideTimer = null;
 
   function updateActiveResultUi(){
     const rows = els.placeResults.querySelectorAll('.place-option');
@@ -605,10 +603,22 @@
     }
   }
 
+  function showDropdown(){
+    if (blurHideTimer){ clearTimeout(blurHideTimer); blurHideTimer = null; }
+    els.placeDropdown.hidden = false;
+    els.placeSearchInput.setAttribute('aria-expanded', 'true');
+  }
+
+  function hideDropdown(){
+    els.placeDropdown.hidden = true;
+    els.placeSearchInput.setAttribute('aria-expanded', 'false');
+  }
+
   function selectPlace(result){
     state.location = { lat: result.latitude, lon: result.longitude, label: placeLabel(result) };
     updateLocationDisplay();
-    els.locationDialog.close();
+    hideDropdown();
+    els.placeSearchInput.blur();
     loadForecast();
   }
 
@@ -625,7 +635,6 @@
 
     activeResultIndex = -1;
     els.placeResults.textContent = '';
-    els.placeSearchInput.setAttribute('aria-expanded', searchResults.length ? 'true' : 'false');
 
     if (!searchResults.length){
       els.placeSearchStatus.textContent = els.placeSearchInput.value.trim().length >= 2 ? 'No matches found.' : '';
@@ -684,40 +693,18 @@
     }
   }
 
-  function openLocationDialog(){
-    locationDialogTrigger = document.activeElement;
-    els.placeSearchInput.value = '';
-    els.placeSearchStatus.textContent = '';
-    els.placeResults.textContent = '';
-    els.placeSearchInput.setAttribute('aria-expanded', 'false');
-    els.placeSearchInput.removeAttribute('aria-activedescendant');
-    searchResults = [];
-    activeResultIndex = -1;
-    els.locationDialog.showModal();
-    els.placeSearchInput.focus();
-  }
+  els.placeSearchInput.addEventListener('focus', showDropdown);
 
-  els.locChangeBtn.addEventListener('click', openLocationDialog);
-  els.locationDialogClose.addEventListener('click', () => els.locationDialog.close());
-
-  // Clicking the backdrop lands on the dialog element itself (not a
-  // descendant), which is the standard way to detect a backdrop tap.
-  els.locationDialog.addEventListener('click', (event) => {
-    if (event.target === els.locationDialog) els.locationDialog.close();
-  });
-
-  // Fires on every close path (Escape, backdrop tap, the close button, or
-  // selecting a place), so cleanup and focus restoration only live here once.
-  els.locationDialog.addEventListener('close', () => {
-    if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
-    searchRequestId += 1;
-    if (locationDialogTrigger && typeof locationDialogTrigger.focus === 'function'){
-      locationDialogTrigger.focus();
-    }
+  // Delayed so a tap on a result row or the "use current location" button
+  // (which blurs the input first) still gets to register its click before
+  // the dropdown disappears out from under it.
+  els.placeSearchInput.addEventListener('blur', () => {
+    blurHideTimer = setTimeout(hideDropdown, 150);
   });
 
   els.useCurrentLocationBtn.addEventListener('click', async () => {
-    els.locationDialog.close();
+    hideDropdown();
+    els.placeSearchInput.blur();
     els.loadingText.textContent = 'Finding your location\u2026';
     setLoading(true);
     state.location = await getCurrentLocation();
@@ -733,7 +720,6 @@
     if (query.length < 2){
       searchRequestId += 1; // invalidate any in-flight search
       els.placeResults.textContent = '';
-      els.placeSearchInput.setAttribute('aria-expanded', 'false');
       els.placeSearchStatus.textContent = '';
       return;
     }
@@ -742,6 +728,11 @@
   });
 
   els.placeSearchInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape'){
+      event.preventDefault();
+      els.placeSearchInput.blur();
+      return;
+    }
     if (!searchResults.length) return;
     if (event.key === 'ArrowDown'){
       event.preventDefault();

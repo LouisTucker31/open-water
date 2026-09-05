@@ -1,3 +1,4 @@
+// BUILD-12-JS-FIX: if you see this comment on GitHub, this JS file is current
 (() => {
   const LAT = 50.706;
   const LON = -1.908;

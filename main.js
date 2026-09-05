@@ -1,7 +1,7 @@
-// BUILD-22-UK-DEFAULT-LOCATION: if you see this comment on GitHub, this JS file is current
+// BUILD-23-LOCAL-SPOTS: if you see this comment on GitHub, this JS file is current
 (() => {
-  // Starting point before any search; deliberately not geolocation-derived,
-  // since the device's current position may not be anywhere near open water.
+  // Used only if geolocation is unavailable/declined, or as the anchor
+  // point for finding the nearest known swim spot (see resolveStartingLocation).
   const DEFAULT_LAT = 50.706;
   const DEFAULT_LON = -1.908;
   const DEFAULT_LOCATION_LABEL = 'Bournemouth, England, United Kingdom';
@@ -21,7 +21,6 @@
 
   const els = {
     dateHeading: document.getElementById('dateHeading'),
-    locText: document.getElementById('locText'),
     placeDropdown: document.getElementById('placeDropdown'),
     placeSearchInput: document.getElementById('placeSearchInput'),
     placeSearchStatus: document.getElementById('placeSearchStatus'),
@@ -29,7 +28,6 @@
     verdictCard: document.getElementById('verdictCard'),
     verdictLabel: document.getElementById('verdictLabel'),
     lastUpdated: document.getElementById('lastUpdated'),
-    refreshBtn: document.getElementById('refreshBtn'),
     loadingBanner: document.getElementById('loadingBanner'),
     loadingText: document.getElementById('loadingText'),
     errorBanner: document.getElementById('errorBanner'),
@@ -511,9 +509,6 @@
 
   function setLoading(isLoading){
     els.loadingBanner.classList.toggle('visible', isLoading);
-    els.refreshBtn.disabled = isLoading;
-    els.refreshBtn.classList.toggle('spinning', isLoading);
-    els.refreshBtn.setAttribute('aria-label', isLoading ? 'Refreshing forecast' : 'Refresh forecast');
     els.timeScroller.classList.toggle('disabled', isLoading);
     els.timeScroller.setAttribute('aria-disabled', isLoading ? 'true' : 'false');
     els.timeScroller.tabIndex = isLoading ? -1 : 0;
@@ -528,8 +523,11 @@
     els.errorBanner.classList.remove('visible');
   }
 
+  // The search bar itself is the only display of the current location now
+  // (no separate coordinates/name line), so this just keeps its value in
+  // sync whenever the location changes from any source.
   function updateLocationDisplay(){
-    els.locText.textContent = state.location.label;
+    els.placeSearchInput.value = state.location.label.split(',')[0];
   }
 
   // Straight-line distance in km, used only to sort search results by
@@ -558,15 +556,28 @@
     return detail ? `${result.name}, ${detail}` : result.name;
   }
 
-  // A small curated set of well-known UK coastal/tidal open-water swim
-  // spots, spread across the country, used only to seed "nearby"
-  // suggestions before the person types anything. Free-text search below
-  // isn't limited to this list; it queries the full Geocoding API.
+  // A curated set of swim spots used to seed "nearby" suggestions before
+  // the person types anything, and to backstop free-text search for names
+  // too local to appear in Open-Meteo's geocoding data (beach sections,
+  // piers, parks). Coordinates for the Poole Harbour/Bournemouth entries
+  // are estimated from general knowledge of the area, not surveyed - worth
+  // checking against a map and adjusting if any look off. Live search below
+  // isn't limited to this list; it also queries the full Geocoding API.
   const NEARBY_SUGGESTIONS = [
-    { name: 'Brighton', admin1: 'England', country: 'United Kingdom', latitude: 50.8225, longitude: -0.1372 },
+    { name: 'Sandbanks', admin1: 'England', country: 'United Kingdom', latitude: 50.6885, longitude: -1.9506 },
+    { name: 'Branksome Chine', admin1: 'England', country: 'United Kingdom', latitude: 50.7080, longitude: -1.9270 },
+    { name: 'Alum Chine', admin1: 'England', country: 'United Kingdom', latitude: 50.7205, longitude: -1.8968 },
     { name: 'Bournemouth', admin1: 'England', country: 'United Kingdom', latitude: 50.7192, longitude: -1.8808 },
-    { name: 'Weymouth', admin1: 'England', country: 'United Kingdom', latitude: 50.6146, longitude: -2.4590 },
+    { name: 'Boscombe Pier', admin1: 'England', country: 'United Kingdom', latitude: 50.7188, longitude: -1.8382 },
+    { name: 'Southbourne', admin1: 'England', country: 'United Kingdom', latitude: 50.7175, longitude: -1.8080 },
+    { name: 'Hamworthy Park', admin1: 'England', country: 'United Kingdom', latitude: 50.7115, longitude: -1.9945 },
+    { name: 'Baiter Park', admin1: 'England', country: 'United Kingdom', latitude: 50.7113, longitude: -1.9825 },
+    { name: 'Whitecliff', admin1: 'England', country: 'United Kingdom', latitude: 50.7057, longitude: -1.9975 },
+    { name: 'Lake Pier', admin1: 'England', country: 'United Kingdom', latitude: 50.7040, longitude: -2.0025 },
+    { name: 'Studland Bay', admin1: 'England', country: 'United Kingdom', latitude: 50.6485, longitude: -1.9520 },
     { name: 'Swanage', admin1: 'England', country: 'United Kingdom', latitude: 50.6062, longitude: -1.9593 },
+    { name: 'Weymouth', admin1: 'England', country: 'United Kingdom', latitude: 50.6146, longitude: -2.4590 },
+    { name: 'Brighton', admin1: 'England', country: 'United Kingdom', latitude: 50.8225, longitude: -0.1372 },
     { name: 'Torquay', admin1: 'England', country: 'United Kingdom', latitude: 50.4619, longitude: -3.5253 },
     { name: 'Newquay', admin1: 'England', country: 'United Kingdom', latitude: 50.4155, longitude: -5.0870 },
     { name: 'St Ives', admin1: 'England', country: 'United Kingdom', latitude: 50.2115, longitude: -5.4809 },
@@ -581,6 +592,36 @@
     { name: 'St Andrews', admin1: 'Scotland', country: 'United Kingdom', latitude: 56.3398, longitude: -2.7967 },
     { name: 'Portrush', admin1: 'Northern Ireland', country: 'United Kingdom', latitude: 55.2038, longitude: -6.6567 }
   ];
+
+  // Uses the device's approximate position only to pick the closest entry
+  // from the curated list above - never as the forecast location itself,
+  // since raw GPS position could easily be somewhere inland with no open
+  // water at all. Falls back to the default location if geolocation is
+  // unsupported, declined, or times out.
+  function nearestKnownSpot(lat, lon){
+    return NEARBY_SUGGESTIONS.reduce((closest, spot) => {
+      const distanceKm = haversineKm(lat, lon, spot.latitude, spot.longitude);
+      return (!closest || distanceKm < closest.distanceKm) ? { spot, distanceKm } : closest;
+    }, null).spot;
+  }
+
+  function resolveStartingLocation(){
+    const fallback = { lat: DEFAULT_LAT, lon: DEFAULT_LON, label: DEFAULT_LOCATION_LABEL };
+    return new Promise((resolve) => {
+      if (!('geolocation' in navigator)){
+        resolve(fallback);
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const nearest = nearestKnownSpot(position.coords.latitude, position.coords.longitude);
+          resolve({ lat: nearest.latitude, lon: nearest.longitude, label: placeLabel(nearest) });
+        },
+        () => resolve(fallback),
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 5 * 60 * 1000 }
+      );
+    });
+  }
 
   let searchResults = [];
   let activeResultIndex = -1;
@@ -679,6 +720,11 @@
     renderPlaceResults(NEARBY_SUGGESTIONS, 'Nearby locations');
   }
 
+  function matchingLocalSpots(query){
+    const lower = query.toLowerCase();
+    return NEARBY_SUGGESTIONS.filter(spot => spot.name.toLowerCase().includes(lower));
+  }
+
   async function searchPlaces(query){
     const requestId = ++searchRequestId;
     els.placeSearchStatus.textContent = 'Searching\u2026';
@@ -692,7 +738,14 @@
       const json = await res.json();
       if (requestId !== searchRequestId) return;
       const ukResults = (json.results || []).filter(result => result.country_code === SEARCH_COUNTRY_CODE);
-      renderPlaceResults(ukResults);
+      // Local beach sections, piers and parks (e.g. "Sandbanks", "Branksome
+      // Chine") generally aren't in Open-Meteo's place-name data, so the
+      // curated list backstops the live search for those; curated entries
+      // win over a live result with the same name.
+      const localMatches = matchingLocalSpots(query);
+      const localNames = new Set(localMatches.map(spot => spot.name.toLowerCase()));
+      const combined = [...localMatches, ...ukResults.filter(result => !localNames.has(result.name.toLowerCase()))];
+      renderPlaceResults(combined);
     } catch (err){
       if (requestId !== searchRequestId) return;
       els.placeSearchStatus.textContent = 'Could not search right now. Check your connection.';
@@ -810,9 +863,11 @@
     }
   }
 
-  els.refreshBtn.addEventListener('click', loadForecast);
   els.retryBtn.addEventListener('click', loadForecast);
 
-  updateLocationDisplay();
-  loadForecast();
+  (async function init(){
+    state.location = await resolveStartingLocation();
+    updateLocationDisplay();
+    loadForecast();
+  })();
 })();

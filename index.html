@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src https://api.open-meteo.com https://marine-api.open-meteo.com https://geocoding-api.open-meteo.com; style-src 'self'; script-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none';" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -14,19 +14,7 @@
 <body>
   <main class="wrap">
     <div class="top">
-      <div>
-        <div class="date" id="dateHeading">Loading forecast&hellip;</div>
-        <div class="loc" id="locText">Loading&hellip;</div>
-      </div>
-      <button type="button" class="refresh-icon-btn" id="refreshBtn" aria-label="Refresh forecast" disabled>
-        <!-- Icon adapted from Lucide's "refresh-cw" (ISC licence, lucide.dev) -->
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
-          <path d="M3 3v5h5"></path>
-          <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
-          <path d="M16 16h5v5"></path>
-        </svg>
-      </button>
+      <div class="date" id="dateHeading">Loading forecast&hellip;</div>
     </div>
 
     <section class="hero" aria-live="polite">
@@ -42,7 +30,7 @@
 
     <div id="loadingBanner" class="status-banner loading visible" role="status" aria-live="polite">
       <span class="spinner"></span>
-      <span id="loadingText">Fetching the latest forecast from Open-Meteo&hellip;</span>
+      <span id="loadingText">Finding your nearest swim spot&hellip;</span>
     </div>
 
     <div id="errorBanner" class="status-banner error" role="alert">
@@ -153,15 +141,16 @@
       <p><strong>Weather:</strong> air temperature, weather condition, precipitation chance, visibility, wind speed, direction and gusts, from the <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a> Forecast API, which combines national weather services including the UK Met Office and DWD Germany.</p>
       <p><strong>Waves and sea temperature:</strong> wave height and period, and sea surface temperature, from the Open-Meteo Marine API.</p>
       <p><strong>Tide:</strong> high and low tide times shown here are estimated from Open-Meteo's modelled sea level height, not from an official tide table. This is <strong>not a substitute for an authoritative source</strong>. For confirmed UK tide times, check <a href="https://www.admiralty.co.uk/access-data/tidal-data/easy-tide" target="_blank" rel="noopener noreferrer">ADMIRALTY EasyTide</a> directly.</p>
-      <p>Open-Meteo is free for non-commercial use and requires no API key. Both data sets are fetched live from your browser each time you refresh this page.</p>
-      <p><strong>Default location:</strong> the app starts on Bournemouth. Search for a different place using the search bar above the time picker; the last place you choose stays selected until you search again.</p>
-      <p><strong>Place search:</strong> place names and coordinates come from the Open-Meteo Geocoding API, filtered to UK results only. Your search text is sent to Open-Meteo to find matches; it is not stored anywhere else.</p>
+      <p>Open-Meteo is free for non-commercial use and requires no API key. Both data sets are fetched live from your browser each time the page loads.</p>
+      <p><strong>Starting location:</strong> on load, the app tries to find your device's approximate position, then starts on whichever known swim spot from the search suggestions is closest to it, rather than using your raw position directly. If location access is unavailable or declined, it starts on Bournemouth. Search for a different place any time using the search bar above the time picker.</p>
+      <p><strong>Refreshing:</strong> the forecast is fetched once per page load and covers the next 7 days; picking a different hour just re-reads that same data rather than fetching again. To pull an updated forecast, reload the page.</p>
+      <p><strong>Place search:</strong> place names and coordinates come from the Open-Meteo Geocoding API, filtered to UK results only, plus a small set of specific local spots around Poole Harbour and Bournemouth that a general place search doesn't resolve. Your search text is sent to Open-Meteo to find matches; it is not stored anywhere else.</p>
       <p><strong>Lakes and rivers:</strong> wave height, sea temperature and tide come from Open-Meteo's Marine API, which only covers coastal and offshore waters. Inland lakes and rivers will show blank values for those three fields; air temperature, wind, rain and visibility still work anywhere.</p>
-      <p><strong>Wetsuit guidance:</strong> based on Ironman's age-group wetsuit rules: mandatory below 16&deg;C, legal up to and including 24.5&deg;C, optional without award eligibility up to 28.8&deg;C, and banned above that. Professional-athlete limits and other federations' rules differ, and race organisers make the official call on the day.</p>
+      <p><strong>Wetsuit guidance:</strong> based on Ironman's age-group wetsuit rules: mandatory below 16&deg;C, legal up to and including 24.5&deg;C, optional without award eligibility up to 28.8&deg;C, and banned above that. Professional athletes have a lower legal limit (21.9&deg;C) but the same 28.8&deg;C ban; other federations' rules differ, and race organisers make the official call on the day.</p>
       <p>This is a training planning aid, not a safety certification. Always check conditions on the day and follow local safety guidance.</p>
     </details>
 
-    <p class="build-stamp">BUILD-22-UK-DEFAULT-LOCATION</p>
+    <p class="build-stamp">BUILD-23-LOCAL-SPOTS</p>
   </main>
 
   <script src="main.js"></script>

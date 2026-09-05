@@ -18,7 +18,7 @@
 
   const els = {
     dateHeading: document.getElementById('dateHeading'),
-    verdictBadge: document.getElementById('verdictBadge'),
+    verdictCard: document.getElementById('verdictCard'),
     verdictLabel: document.getElementById('verdictLabel'),
     lastUpdated: document.getElementById('lastUpdated'),
     refreshBtn: document.getElementById('refreshBtn'),
@@ -273,8 +273,8 @@
     el.className = `dot ${level}`;
   }
 
-  function setBadgeLevel(level){
-    els.verdictBadge.className = `badge${level === 'success' ? '' : ' ' + level}`;
+  function setVerdictLevel(level){
+    els.verdictCard.className = `verdict-card${level === 'success' ? '' : ' ' + level}`;
   }
 
   function render(iso){
@@ -340,7 +340,7 @@
     const verdict = computeVerdict({ waveHeight, gustMph: windGust, waterTemp, rainChance, weatherCode });
     els.verdictLabel.textContent = verdict.label;
     els.verdictText.textContent = verdict.text;
-    setBadgeLevel(verdict.level);
+    setVerdictLevel(verdict.level);
   }
 
   // Finds the nearest upcoming high or low tide event after the selected

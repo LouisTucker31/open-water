@@ -71,7 +71,7 @@
       justify-content:space-between;
       gap:12px;
       align-items:flex-start;
-      margin-bottom:6px;
+      margin-bottom:8px;
       flex-wrap:wrap;
     }
 
@@ -86,49 +86,45 @@
       color:var(--text-secondary);
     }
 
-    .badge{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      border-radius:var(--radius-capsule);
-      padding:10px 16px;
-      font-size:0.9375rem;
-      font-weight:600;
-      line-height:1;
-      white-space:nowrap;
-      background:var(--success-bg);
-      color:var(--text-primary);
-    }
-
-    .badge.warning{background:var(--warning-bg)}
-    .badge.destructive{background:var(--destructive-bg)}
-
-    .badge .dot{
-      width:8px;height:8px;border-radius:50%;
-      background:var(--success);
-      flex:0 0 auto;
-      display:block;
-      margin-top:-2px;
-    }
-    .badge.warning .dot{background:var(--warning)}
-    .badge.destructive .dot{background:var(--destructive)}
-
-    .badge span:last-child{
-      display:inline-flex;
-      align-items:center;
-      line-height:1;
-    }
-
     .hero{
       margin-bottom:20px;
     }
 
-    .hero .badge{
-      margin-bottom:10px;
+    /* The verdict tile carries the day's headline status. Background tint
+       is the secondary cue; the dot plus label text carry the same meaning
+       so colour is never the only signal. */
+    .verdict-card{
+      border-radius:var(--radius-lg);
+      padding:16px;
+      background:var(--success-bg);
+    }
+    .verdict-card.warning{background:var(--warning-bg)}
+    .verdict-card.destructive{background:var(--destructive-bg)}
+
+    .verdict-header{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      margin-bottom:8px;
     }
 
-    .hero-text{
+    .verdict-header .dot{
+      width:10px;height:10px;border-radius:50%;
+      background:var(--success);
+      flex:0 0 auto;
+      margin-top:0;
+    }
+    .verdict-card.warning .verdict-header .dot{background:var(--warning)}
+    .verdict-card.destructive .verdict-header .dot{background:var(--destructive)}
+
+    .verdict-label{
       font-size:1.0625rem;
+      font-weight:700;
+      color:var(--text-primary);
+    }
+
+    .verdict-text{
+      font-size:0.9375rem;
       color:var(--text-primary);
       margin:0 0 8px;
       line-height:1.4;
@@ -178,8 +174,8 @@
     .status-banner.loading{background:var(--bg-secondary); color:var(--text-secondary)}
     .status-banner.error{background:var(--destructive-bg); color:var(--text-primary)}
     .status-banner .retry-btn{
-      min-height:36px;
-      padding:6px 14px;
+      min-height:44px;
+      padding:10px 18px;
       border-radius:var(--radius-capsule);
       background:var(--destructive);
       color:#ffffff;
@@ -290,8 +286,8 @@
 
     .metric{
       background:var(--bg-elevated);
-      border-radius:var(--radius-lg);
-      padding:14px 12px;
+      border-radius:var(--radius-md);
+      padding:16px 12px;
     }
 
     .metric .k{
@@ -335,7 +331,7 @@
       gap:12px;
       align-items:flex-start;
       font-size:0.9375rem;
-      margin:10px 0;
+      margin:12px 0;
       color:var(--text-primary);
     }
 
@@ -368,7 +364,7 @@
       justify-content:space-between;
       gap:16px;
       font-size:0.9375rem;
-      margin:6px 0;
+      margin:8px 0;
     }
     .kv span:first-child{color:var(--text-secondary)}
     .kv span:last-child{
@@ -380,7 +376,7 @@
     .card-note{
       font-size:0.75rem;
       color:var(--text-tertiary);
-      margin-top:10px;
+      margin-top:8px;
     }
 
     .build-stamp{
@@ -415,7 +411,7 @@
     details p{
       font-size:0.875rem;
       color:var(--text-secondary);
-      margin:10px 0 0;
+      margin:8px 0 0;
     }
 
     details strong{color:var(--text-primary)}

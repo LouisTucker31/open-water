@@ -27,12 +27,14 @@
     </div>
 
     <section class="hero" aria-live="polite">
-      <div id="verdictBadge" class="badge" role="status">
-        <span class="dot"></span>
-        <span id="verdictLabel">Loading&hellip;</span>
+      <div id="verdictCard" class="verdict-card" role="status">
+        <div class="verdict-header">
+          <span class="dot" aria-hidden="true"></span>
+          <span id="verdictLabel" class="verdict-label">Loading&hellip;</span>
+        </div>
+        <p class="verdict-text" id="verdictText">Waiting for the latest forecast.</p>
+        <span class="updated" id="lastUpdated"></span>
       </div>
-      <p class="hero-text" id="verdictText">Waiting for the latest forecast.</p>
-      <span class="updated" id="lastUpdated"></span>
     </section>
 
     <div id="loadingBanner" class="status-banner loading visible" role="status" aria-live="polite">
@@ -128,7 +130,7 @@
       <p>This is a training planning aid, not a safety certification. Always check conditions on the day and follow local safety guidance.</p>
     </details>
 
-    <p class="build-stamp">BUILD-12-JS-FIX</p>
+    <p class="build-stamp">BUILD-13-VERDICT-TILE</p>
   </main>
 
   <script src="main.js"></script>

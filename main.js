@@ -10,6 +10,13 @@
   const FORECAST_DAYS = 7; // Weather API supports up to 16 days, Marine up to 8; 7 is the shared window.
   const ITEM_WIDTH_PX = 92; // Must match the .time-item flex-basis in styles.css.
 
+  // Wave height thresholds for the verdict, in feet (matches the displayed
+  // unit). Calibrated to Louis's own comfort after 1.2 ft felt too choppy
+  // in person on 6 September 2026 while showing "Good swim window" -
+  // adjust these two numbers directly if your tolerance changes again.
+  const CHOP_WARNING_FT = 1.0; // At or above this, "significant chop" becomes a concern.
+  const CHOP_CALM_FT = 0.7; // Below this (with light wind), conditions can call "Excellent".
+
   const state = {
     location: { lat: DEFAULT_LAT, lon: DEFAULT_LON, label: DEFAULT_LOCATION_LABEL },
     weather: null,
@@ -278,14 +285,15 @@
   }
 
   function computeVerdict({ waveHeight, gustMph, waterTemp, rainChance, weatherCode }){
+    const waveHeightFt = waveHeight === null ? null : metersToFeet(waveHeight);
     const concerns = [];
-    if (waveHeight !== null && waveHeight >= 0.8) concerns.push('significant chop');
+    if (waveHeightFt !== null && waveHeightFt >= CHOP_WARNING_FT) concerns.push('significant chop');
     if (gustMph !== null && gustMph >= 25) concerns.push('strong gusts');
     if (waterTemp !== null && waterTemp < 12) concerns.push('cold water');
     if (rainChance !== null && rainChance >= 60) concerns.push('a good chance of rain');
     if ([95, 96, 99].includes(weatherCode)) concerns.push('possible thunderstorms, so seek shelter if lightning is near');
 
-    if (concerns.length === 0 && waveHeight !== null && waveHeight < 0.4 && gustMph !== null && gustMph < 15){
+    if (concerns.length === 0 && waveHeightFt !== null && waveHeightFt < CHOP_CALM_FT && gustMph !== null && gustMph < 15){
       return { label:'Excellent swim window', level:'success', text:'Excellent training conditions. Calm water, light wind and comfortable visibility.' };
     }
     if (concerns.length === 0){

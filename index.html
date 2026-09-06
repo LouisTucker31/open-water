@@ -147,10 +147,11 @@
       <p><strong>Place search:</strong> place names and coordinates come from the Open-Meteo Geocoding API, filtered to UK results only, plus a small set of specific local spots around Poole Harbour and Bournemouth that a general place search doesn't resolve. Your search text is sent to Open-Meteo to find matches; it is not stored anywhere else.</p>
       <p><strong>Lakes and rivers:</strong> wave height, sea temperature and tide come from Open-Meteo's Marine API, which only covers coastal and offshore waters. Inland lakes and rivers will show blank values for those three fields; air temperature, wind, rain and visibility still work anywhere.</p>
       <p><strong>Wetsuit guidance:</strong> based on Ironman's age-group wetsuit rules: mandatory below 16&deg;C, legal up to and including 24.5&deg;C, optional without award eligibility up to 28.8&deg;C, and banned above that. Professional athletes have a lower legal limit (21.9&deg;C) but the same 28.8&deg;C ban; other federations' rules differ, and race organisers make the official call on the day.</p>
+      <p><strong>Swim window verdict:</strong> the headline verdict flags "significant chop" from 1.0 ft of wave height, calibrated to personal comfort rather than any official guidance. Adjust <code>CHOP_WARNING_FT</code> and <code>CHOP_CALM_FT</code> in main.js if that stops matching how conditions actually feel.</p>
       <p>This is a training planning aid, not a safety certification. Always check conditions on the day and follow local safety guidance.</p>
     </details>
 
-    <p class="build-stamp">BUILD-25-LIGHT-MODE-REPALETTE</p>
+    <p class="build-stamp">BUILD-26-CHOP-THRESHOLD</p>
   </main>
 
   <script src="main.js"></script>
